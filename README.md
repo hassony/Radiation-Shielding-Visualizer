@@ -155,10 +155,20 @@ print("App running at:", public_url)
 
 ---
 
+## 💖 Support the Project
+
+This project is self-funded and developed by **Hassan Almoosa**.  
+If you find it useful for education or research, consider supporting its continuation:
+
+- ☕ Buy me a coffee: [https://buymeacoffee.com/yourlink]
+- 💸 Donate via PayPal: [https://paypal.me/yourlink]
+- 🌟 Or simply star the repo to show support!
+
+Your help keeps this educational tool alive and evolving.
+
 ## 📜 License
 
-MIT License © 2025 **HASSAN ALMOOSA**
-Free to use, modify, and share with attribution.
+
 
 ---
 
