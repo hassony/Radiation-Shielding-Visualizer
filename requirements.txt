@@ -10,6 +10,7 @@ numpy>=1.26.0
 matplotlib>=3.9.0
 pandas>=2.2.0        # 📊 For handling tabular data and exporting Excel
 openpyxl>=3.1.2      # 📘 Required by pandas to write .xlsx files
+xlsxwriter>=3.2.0     # 🧾 For enhanced Excel export in Proton & Gamma modules
 
 # === Web Framework ===
 Flask>=3.0.0
