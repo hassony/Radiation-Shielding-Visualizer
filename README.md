@@ -6,24 +6,30 @@ An **interactive educational toolkit** built with **Python + Flask** to visualiz
 
 ## 🔔 What’s New (Oct 2025)
 
-* ✅ **X-ray**: Added **K-edge** visualization when scanning energies across high-Z materials.
-* ✅ **Gamma-ray**: Added **axis toggle** between **Linear** and **Log** scales for cross-sections/attenuation plots.
+* ✅ **X-ray:** Added **K-edge visualization** for high-Z materials.  
+* ✅ **Gamma-ray:** Added **axis toggle (Linear/Log)** for cross-section and attenuation plots.  
+* 🧪 **Proton:** Added **scientific PDF reports** with dynamic titles, data tables, and export functions.  
+* ⚙️ **Unified JS/AJAX backend:** Single handler for all modules (`main.js`).  
+* 🧩 **Enhanced constants database:** Accurate **mean excitation energies (I-values)** sourced from NIST/ICRU.  
+* 💾 **Full export support:** Excel (.xlsx) and PDF report generation built-in.  
+* 🚧 **Electrons & Shielding:** Framework structure now in place; physics modules under development.
+
 
 ---
 
 ## 🧠 Overview
 
-This project provides simplified, didactic simulations of:
+This project provides simplified, didactic simulations of major radiation–matter interactions:
 
-| Module                        | Description                                                                                                                       |
-| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| ☢️ **X-ray Interactions**     | Visualizes relative probabilities of Photoelectric, Compton, and Rayleigh. Includes **K-edge** highlighting for high-Z materials. |
-| ☢️ **Gamma-ray Interactions** | Shows attenuation/cross-section behavior with **Log/Linear axis toggle** (and support for pair production at higher energies).    |
-| ⚡ **Electrons**               | Simulates energy loss and range of electrons in matter.                                                                           |
-| 💥 **Protons (Bragg Peak)**   | Demonstrates how proton energy affects depth–dose distribution (Bragg Peak).                                                      |
-| 🧱 **Dose & Shielding**       | Compares attenuation in different shielding materials using Beer–Lambert’s law.                                                   |
+| Module                     | Description                                                                                          |
+|----------------------------|------------------------------------------------------------------------------------------------------|
+| ☢️ **X-ray Interactions**     | Visualizes photoelectric, Compton and Rayleigh interactions, includes **K-edge highlighting**.      |
+| ⚛️ **Gamma-ray Interactions** | Shows attenuation/cross-section vs. energy, supports **Log/Linear axis toggle** and pair production.|
+| ⚡ **Electrons**             | *(Coming soon)* Simulates collisional + radiative losses, CSDA range, angular scattering.          |
+| 💥 **Protons (Bragg Peak)**   | Displays stopping power and depth–dose curves typical of medical physics applications.             |
+| 🧱 **Shielding / Dose Attenuation** | *(Coming soon)* Compares material shielding performance (HVL, TVL, attenuation laws).         |
 
-> 🧩 All models are **simplified for teaching** — not for clinical use.
+> **Note:** All models are simplified for teaching and research only — they are *not* to be used for clinical dose calculation or patient treatment planning.
 
 ---
 
@@ -58,6 +64,8 @@ MedicalRadiationVisualizer/
 │   ├── js/
 │   │   └── main.js             # Unified AJAX handlers for all modules
 │   └── plots/                  # Generated charts (PNG)
+│   │               
+    └── fonts/ 
 │
 └── requirements.txt
 ```
@@ -114,9 +122,33 @@ This project helps students **visualize radiation–matter interactions** and un
 ---
 
 ## 🔧 Feature Notes
+### ⚡ Electron Interaction Visualizer *(in development)*
+- Will integrate **collisional (Bethe)** and **radiative (Bremsstrahlung)** losses.  
+- Computes **total stopping power** and **CSDA range** through numerical integration.  
+- Plans to include **Highland multiple-scattering** model for angular dispersion.  
+- Target outputs: stopping-power curve, Bragg-like dose curve, and angular spread vs depth.
 
-* **X-ray (K-edge):** when a selected material has a K-shell binding energy within the scanned range, the plot highlights the **K-edge** region and can annotate the approximate edge energy.
-* **Gamma (Log/Linear):** a simple toggle switch updates the plot **without page reload** via AJAX, helping students see how scaling changes interpretation of slopes and separations.
+---
+
+### 🧱 Shielding and Dose Attenuation *(in development)*
+- Uses **Beer–Lambert attenuation law** to compare transmission through multiple materials.  
+- Will calculate **HVL / TVL** and show exponential decay curves with selectable photon energies.  
+- PDF and Excel exports planned with automatic energy-dependent attenuation tables.  
+- Designed for future expansion to **multilayer composite shields**.
+
+---
+
+### 🧩 System-wide Features
+- Unified **AJAX backend** (`main.js`) handles all modules asynchronously for smooth user experience.  
+- Centralized constants (`core/constants.py`) provide validated Z, ρ, and K/L-edge data from NIST/ICRU references.  
+- Academic-style **PDF report system** used consistently across all modules.  
+- Modular design: each interaction type (X-ray, Gamma, Proton, etc.) in its own independent Flask blueprint.  
+- Interface uses **responsive two-column layout** for inputs and plots, ensuring readability on any device.
+
+---
+
+> These features are designed to bridge theoretical radiation physics and interactive visualization — making complex phenomena intuitive, quantitative, and visually clear for students and researchers.
+
 
 ---
 
@@ -125,7 +157,7 @@ This project helps students **visualize radiation–matter interactions** and un
 You can experiment with simplified versions of each module directly on Google Colab without local setup:
 
 ```python
-!git clone https://github.com/YOUR_USERNAME/MedicalRadiationVisualizer.git
+!git clone https://github.com/hassony/MedicalRadiationVisualizer.git
 %cd MedicalRadiationVisualizer
 !pip install -r requirements.txt
 
@@ -160,15 +192,19 @@ print("App running at:", public_url)
 This project is self-funded and developed by **Hassan Almoosa**.  
 If you find it useful for education or research, consider supporting its continuation:
 
-- ☕ Buy me a coffee: [https://buymeacoffee.com/yourlink]
-- 💸 Donate via PayPal: [https://paypal.me/yourlink]
+- 💸 Donate via PayPal: [https://paypal.me/7asson999]
 - 🌟 Or simply star the repo to show support!
 
 Your help keeps this educational tool alive and evolving.
 
 ## 📜 License
 
+Apache License 2.0
+© 2025 Hassan Almoosa
+Licensed under the Apache License, Version 2.0 (the “License”); you may not use this file except in compliance with the License.
+You may obtain a copy of the License at:
 
+https://www.apache.org/licenses/LICENSE-2.0
 
 ---
 
