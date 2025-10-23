@@ -37,7 +37,7 @@
       <div class="left-panel">
         <form method="POST" class="card" id="xrayForm">
 
-          <!-- 🧪 المادة الأولى -->
+          <!-- Material 1-->
           <label for="material">Primary Material (Material 1):</label>
           <select id="material" name="material">
             <option value="custom" {% if selected_material == 'custom' %}selected{% endif %}>Custom (manual Z₁)</option>
@@ -57,7 +57,7 @@
             <input type="number" id="rho1" name="rho1" step="0.01" min="0.001" value="{{ rho1 or '1.0' }}" placeholder="e.g. 7.8" />
           </div>
 
-          <!-- 🧪 المادة الثانية -->
+          <!-- Material 2-->
           <label for="material2">Secondary Material (Material 2, optional):</label>
           <select id="material2" name="material2">
             <option value="">None (single material)</option>
@@ -78,14 +78,14 @@
             <input type="number" id="rho2" name="rho2" step="0.01" min="0.001" value="{{ rho2 or '1.0' }}" placeholder="e.g. 11.34" />
           </div>
 
-          <!-- ⚡ نطاق الطاقة -->
+          <!-- Energy Range -->
           <label for="emin">Energy range (keV):</label>
           <div class="input-group">
             <input type="number" name="emin" id="emin" value="{{ emin or 20 }}" step="1" min="1" />
             <input type="number" name="emax" id="emax" value="{{ emax or 120 }}" step="1" min="2" />
           </div>
 
-          <!-- ✅ تفعيل التأثيرات -->
+      
           <fieldset>
             <legend>Select interactions to display:</legend>
             <label class="checkbox"><input type="checkbox" name="show_photo" {% if show_photo %}checked{% endif %}> Photoelectric</label>
@@ -94,8 +94,8 @@
           </fieldset>
 
           <button type="submit">Generate Plot</button>
-          <button type="button" id="downloadExcel" class="secondary">💾 Download Data (Excel)</button>
-          <button type="button" id="generateReport">📄 Generate Report (PDF)</button>
+          <button type="button" id="btnXrayExcel" class="secondary">💾 Download Data (Excel)</button>
+          <button type="button" id="btnXrayPDF">📄 Generate Report (PDF)</button>
         </form>
       </div>
 
