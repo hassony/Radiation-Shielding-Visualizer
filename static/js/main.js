@@ -1,9 +1,10 @@
 /* ============================================================
-   ⚛️ Medical Radiation Visualizer — Interactive AJAX Handler
+   Medical Radiation Visualizer — Unified AJAX Handler
    Author: HASSAN ALMOOSA
    Description:
-   Handles dynamic form submissions and interactive controls
-   for X-ray, Gamma-ray, and other modules without page reload.
+   Handles interactive submissions for all modules
+   (X-ray, Gamma-ray, Proton, Electrons, Shielding)
+   without full page reload.
 ============================================================ */
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -17,7 +18,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const rightPanel = document.querySelector(".right-panel");
     if (!form) return;
 
-    // 🎛️ التحكم في إظهار حقول custom
+    // Toggle custom input visibility
     cfg.selectIds.forEach((selectId, idx) => {
       const select = document.getElementById(selectId);
       const customDiv = document.getElementById(cfg.customIds[idx]);
@@ -30,146 +31,133 @@ document.addEventListener("DOMContentLoaded", () => {
           input.disabled = !isCustom;
         });
       };
-
       toggleCustom();
       select.addEventListener("change", toggleCustom);
     });
 
-    // 📈 إرسال النموذج عبر AJAX
+    // Submit form via AJAX
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
+      const emin = parseFloat(form.querySelector("#emin")?.value || 0);
+      const emax = parseFloat(form.querySelector("#emax")?.value || 0);
 
-      const eminInput = form.querySelector("#emin");
-      const emaxInput = form.querySelector("#emax");
-      const emin = parseFloat(eminInput?.value || 0);
-      const emax = parseFloat(emaxInput?.value || 0);
-
-      // 🌟 التحقق من صحة الكثافة للمادة المخصصة (X-ray وGamma)
-      const checkDensity = (id) => {
+      const validateDensity = (id) => {
         const input = form.querySelector(`#${id}`);
         if (input && !input.disabled) {
           const val = parseFloat(input.value || 0);
           if (isNaN(val) || val <= 0) {
-            alert(`⚠️ Density (${id}) must be a positive number.`);
+            alert(`Density (${id}) must be positive.`);
             throw new Error("Invalid density");
           }
         }
       };
 
-      try {
-        checkDensity("rho1");
-        checkDensity("rho2");
-      } catch {
-        return;
-      }
+      try { validateDensity("rho1"); validateDensity("rho2"); } catch { return; }
+      if (emax <= emin) { alert(`Maximum energy must exceed minimum (${cfg.unit}).`); return; }
 
-      // ⚠️ تحقق من نطاق الطاقة
-      if (emax <= emin) {
-        alert(`⚠️ Maximum energy must be greater than minimum energy (${cfg.unit}).`);
-        return;
-      }
-
-      // 🌀 شاشة التحميل
+      // Loading screen
       rightPanel.innerHTML = `
         <div class="result" style="text-align:center; padding:40px;">
-          <div class="spinner" style="
-            width: 40px; height: 40px; border: 4px solid #ccc;
-            border-top: 4px solid #5e72e4; border-radius: 50%;
-            animation: spin 0.8s linear infinite; margin: 0 auto;
-          "></div>
+          <div class="spinner" style="width:40px;height:40px;border:4px solid #ccc;
+            border-top:4px solid #5e72e4;border-radius:50%;
+            animation:spin 0.8s linear infinite;margin:0 auto;">
+          </div>
           <p style="margin-top:15px;">Generating ${cfg.unit} plot... Please wait.</p>
-        </div>
-      `;
+        </div>`;
 
       const formData = new FormData(form);
-
       try {
         const response = await fetch(window.location.pathname, {
           method: "POST",
           body: formData,
           headers: { "X-Requested-With": "XMLHttpRequest" }
         });
-
         if (!response.ok) {
           const ct = response.headers.get("content-type") || "";
           if (ct.includes("application/json")) {
             const data = await response.json();
-            alert(data.error || "❌ Request failed.");
-          } else {
-            alert("❌ Request failed.");
-          }
+            alert(data.error || "Request failed.");
+          } else alert("Request failed.");
           return;
         }
-
-        // 📄 تحليل الرد HTML
         const html = await response.text();
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, "text/html");
         const newResult = doc.querySelector(".result");
 
         if (newResult) {
-          // 🖼️ تحديث الصورة ومنع الكاش
           const img = newResult.querySelector("img");
           if (img) {
-            const cleanSrc = img.getAttribute("src");
-            img.src = cleanSrc.startsWith("/static")
-              ? `${window.location.origin}${cleanSrc}?v=${Math.floor(Math.random() * 1000000)}`
-              : `${window.location.origin}/${cleanSrc}?v=${Math.floor(Math.random() * 1000000)}`;
+            const src = img.getAttribute("src");
+            img.src = src.startsWith("/static")
+              ? `${window.location.origin}${src}?v=${Math.floor(Math.random() * 1e6)}`
+              : `${window.location.origin}/${src}?v=${Math.floor(Math.random() * 1e6)}`;
           }
-
-          // 🧱 عرض النتيجة الجديدة
           rightPanel.innerHTML = "";
           rightPanel.appendChild(newResult);
         } else {
-          rightPanel.innerHTML = `
-            <div class="result" style="text-align:center;">
-              <p>⚠️ No results returned. Please check your input.</p>
-            </div>`;
+          rightPanel.innerHTML = `<div class="result" style="text-align:center;">
+            <p>No results returned. Please check inputs.</p></div>`;
         }
       } catch (err) {
         console.error("Error updating plot:", err);
-        rightPanel.innerHTML = `
-          <div class="result" style="text-align:center;">
-            <p>❌ Failed to generate plot. Please try again.</p>
-          </div>`;
+        rightPanel.innerHTML = `<div class="result" style="text-align:center;">
+          <p>Failed to generate plot. Please try again.</p></div>`;
       }
     });
   });
 });
 
-/* 🔁 CSS Animation for Spinner */
+/* Spinner animation */
 const style = document.createElement("style");
-style.textContent = `
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}`;
+style.textContent = `@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`;
 document.head.appendChild(style);
-console.log("✅ main.js loaded successfully");
+console.log("main.js loaded successfully");
 
-// ============== Gamma: Excel / PDF download (append-only) ==============
+/* ============================================================
+   1️⃣ X-ray Module — Excel and PDF Download
+============================================================ */
+(function () {
+  const form = document.getElementById("xrayForm");
+  const btnExcel = document.getElementById("btnXrayExcel");
+  const btnPDF = document.getElementById("btnXrayPDF");
+  if (!form || !btnExcel || !btnPDF) return;
+
+  const handleDownload = async (url, filename) => {
+    try {
+      const formData = new FormData(form);
+      const res = await fetch(url, { method: "POST", body: formData });
+      if (!res.ok) throw new Error("Request failed");
+      const blob = await res.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch (err) { alert("Download failed: " + err.message); }
+  };
+
+  btnExcel.addEventListener("click", () => handleDownload("/xray/download", "xray_results.xlsx"));
+  btnPDF.addEventListener("click", () => handleDownload("/xray/report", "xray_report.pdf"));
+})();
+
+/* ============================================================
+   2️⃣ Gamma-ray Module — Excel and PDF Download
+============================================================ */
 (function () {
   const gammaForm = document.getElementById("gammaForm");
-  const btnXlsx   = document.getElementById("btnGammaExcel");
-  const btnPdf    = document.getElementById("btnGammaPDF");
-
+  const btnXlsx = document.getElementById("btnGammaExcel");
+  const btnPdf = document.getElementById("btnGammaPDF");
   if (!gammaForm || !btnXlsx || !btnPdf) return;
 
   async function postAndDownload(url) {
     const fd = new FormData(gammaForm);
-    const resp = await fetch(url, {
-      method: "POST",
-      body: fd,
-      headers: { "X-Requested-With": "XMLHttpRequest" }
-    });
+    const resp = await fetch(url, { method: "POST", body: fd, headers: { "X-Requested-With": "XMLHttpRequest" } });
     if (!resp.ok) {
       const ct = resp.headers.get("content-type") || "";
       if (ct.includes("application/json")) {
-        const j = await resp.json();
-        alert(j.error || "Request failed.");
-      } else {
-        alert("Request failed.");
-      }
+        const j = await resp.json(); alert(j.error || "Request failed.");
+      } else alert("Request failed.");
       return;
     }
     const blob = await resp.blob();
@@ -192,10 +180,9 @@ console.log("✅ main.js loaded successfully");
   btnPdf.addEventListener("click", () => postAndDownload("/gamma/report"));
 })();
 
-// ============================================================
-// 💥 Proton Interaction Visualizer — Stable AJAX Handler
-// ============================================================
-
+/* ============================================================
+   3️⃣ Proton Module — Excel and PDF Download
+============================================================ */
 (function () {
   if (window.protonLogicLoaded) return;
   window.protonLogicLoaded = true;
@@ -204,7 +191,6 @@ console.log("✅ main.js loaded successfully");
   if (!protonForm) return;
   const rightPanel = document.querySelector(".right-panel");
 
-  // Submit
   protonForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     const formData = new FormData(protonForm);
@@ -220,11 +206,11 @@ console.log("✅ main.js loaded successfully");
     const newResult = doc.querySelector(".result");
     rightPanel.innerHTML = "";
     rightPanel.appendChild(newResult);
-
   });
 
-  // Excel
   const btnExcel = document.getElementById("btnProtonExcel");
+  const btnPDF = document.getElementById("btnProtonPDF");
+
   if (btnExcel) {
     btnExcel.addEventListener("click", async () => {
       const formData = new FormData(protonForm);
@@ -238,8 +224,6 @@ console.log("✅ main.js loaded successfully");
     });
   }
 
-  // PDF
-  const btnPDF = document.getElementById("btnProtonPDF");
   if (btnPDF) {
     btnPDF.addEventListener("click", async () => {
       const formData = new FormData(protonForm);
@@ -253,3 +237,13 @@ console.log("✅ main.js loaded successfully");
     });
   }
 })();
+
+/* ============================================================
+   4️⃣ Electrons Module — Placeholder
+============================================================ */
+// TODO: Add AJAX handlers for electron interactions.
+
+/* ============================================================
+   5️⃣ Shielding Module — Placeholder
+============================================================ */
+// TODO: Add AJAX handlers for shielding simulations.
