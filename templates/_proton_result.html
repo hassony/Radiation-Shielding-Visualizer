@@ -1,0 +1,28 @@
+<div class="result">
+  <h3>Results</h3>
+
+  <div class="meta">
+    <p><b>Material:</b> {{ material.replace('_', ' ').capitalize() if material else 'N/A' }}</p>
+    {% if E0 is defined %}
+    <p><b>Initial Energy:</b> {{ "%.3g"|format(E0) }} MeV</p>
+    {% endif %}
+    {% if mode is defined %}
+    <p><b>Plot Type:</b> {{ mode.capitalize() }}</p>
+    {% endif %}
+  </div>
+
+  <div class="plot">
+    <img
+      src="/{{ plot_path }}?v={{ range(1, 999999) | random }}"
+      alt="Proton interaction plot"
+      loading="eager"
+      decoding="sync"
+      style="max-width:100%; height:auto;"
+    />
+  </div>
+
+  <!-- Research-only disclaimer -->
+  <p class="disclaimer">
+    ⚠️ This simulation is for educational and research purposes only. It is not intended for clinical or diagnostic use.
+  </p>
+</div>

@@ -1,0 +1,33 @@
+<div class="result">
+  <h3>Results</h3>
+  
+  <p><b>Material 1:</b> {{ selected_material.capitalize() }}</p>
+  <p><b>Atomic Number (Z₁):</b> {{ selected_Z }}</p>
+  
+  {% if selected_material == 'Custom Material 1' and rho1 %}
+    <p><b>Density (ρ₁):</b> {{ rho1 }} g/cm³</p>
+  {% endif %}
+
+  {% if selected_material2 %}
+    <p><b>Compared with:</b> {{ selected_material2.capitalize() }}</p>
+    {% if selected_material2 == 'Custom Material 2' and rho2 %}
+      <p><b>Density (ρ₂):</b> {{ rho2 }} g/cm³</p>
+    {% endif %}
+  {% endif %}
+
+  <hr>
+
+  <p><b>Energy range:</b> {{ emin }} – {{ emax }} keV ({{ scale.capitalize() }} Scale)</p>
+  <p><b>Rayleigh included:</b> {{ "Yes" if show_rayleigh else "No" }}</p>
+
+
+  <div class="plot">
+    <img src="{{ plot_path }}" alt="X-ray interaction plot" />
+  </div>
+
+  <div class="note" style="margin-top:12px; font-size:0.9rem; color:#555;">
+    <p>🔬 Visualization Note: Sharp vertical lines indicate **K-edge** and **L-edge** absorption thresholds.</p>
+  </div>
+
+
+</div>

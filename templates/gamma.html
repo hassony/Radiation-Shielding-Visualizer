@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>⚛️ Gamma-ray Interaction Visualizer</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+
+<body>
+  <!-- 🌐 Navigation Bar -->
+  <nav class="navbar">
+    <div class="nav-left">
+      <a href="/" class="brand">🎓 Medical Radiation Visualizer</a>
+    </div>
+    <div class="nav-right">
+      <a href="/">🏠 Home</a>
+      <a href="/xray">☢️ X-rays</a>
+      <a href="/gamma" class="active">⚛️ Gamma-rays</a>
+      <a href="/proton">💥 Protons</a>
+      <a href="/electron">⚡ Electrons</a>
+      <a href="/shielding">🧱 Shielding</a>
+    </div>
+  </nav>
+
+  <!-- 🧠 Main Content -->
+  <main class="container">
+    <h1>⚛️ Gamma-ray Interaction Visualizer</h1>
+    <p class="lead">
+      Explore how <b>Gamma rays</b> interact with matter — compare
+      <b>Compton scattering</b> and <b>Pair production</b> between materials.
+    </p>
+
+    <div class="two-column">
+      <!-- 🧾 Left Panel -->
+      <div class="left-panel">
+        <form method="POST" class="card" id="gammaForm">
+          
+          <!-- 🧱 Material 1 -->
+          <label for="material">Material 1:</label>
+          <select id="material" name="material" onchange="toggleCustomInputs(1)">
+            <option value="custom" {% if selected_material == 'custom' %}selected{% endif %}>Custom (manual values)</option>
+            {% for m in materials %}
+              <option value="{{ m }}" {% if selected_material == m %}selected{% endif %}>{{ m.capitalize() }}</option>
+            {% endfor %}
+          </select>
+
+          <div id="custom1" class="custom-row" style="display:none;">
+            <div>
+              <label for="name1">Name:</label>
+              <input type="text" name="name1" id="name1" placeholder="e.g. Iron" value="{{ name1 or '' }}">
+            </div>
+
+            <div>
+              <label for="z1">Atomic Number (Z):</label>
+              <input type="number" name="z1" id="z1" step="0.1" min="1" max="118" value="{{ z1 or '' }}">
+            </div>
+
+            <div>
+              <label for="rho1">Density (ρ):</label>
+              <div class="input-group unit-group">
+                <input type="number" name="rho1" id="rho1" step="0.01" min="0.01" value="{{ rho1 or '' }}">
+                <span class="unit">g/cm³</span>
+              </div>
+            </div>
+          </div>
+
+          <hr>
+
+          <!-- 🧱 Material 2 -->
+          <label for="material2">Material 2 (optional):</label>
+          <select id="material2" name="material2" onchange="toggleCustomInputs(2)">
+            <option value="">None</option>
+            <option value="custom" {% if selected_material2 == 'custom' %}selected{% endif %}>Custom</option>
+            {% for m in materials %}
+              <option value="{{ m }}" {% if selected_material2 == m %}selected{% endif %}>{{ m.capitalize() }}</option>
+            {% endfor %}
+          </select>
+
+          <div id="custom2" class="custom-row" style="display:none;">
+            <div>
+              <label for="name2">Name:</label>
+              <input type="text" name="name2" id="name2" placeholder="e.g. Lead" value="{{ name2 or '' }}">
+            </div>
+
+            <div>
+              <label for="z2">Atomic Number (Z):</label>
+              <input type="number" name="z2" id="z2" step="0.1" min="1" max="118" value="{{ z2 or '' }}">
+            </div>
+
+            <div>
+              <label for="rho2">Density (ρ):</label>
+              <div class="input-group unit-group">
+                <input type="number" name="rho2" id="rho2" step="0.01" min="0.01" value="{{ rho2 or '' }}">
+                <span class="unit">g/cm³</span>
+              </div>
+            </div>
+          </div>
+
+          <hr>
+
+          <!-- ⚙️ Energy Range -->
+          <label for="emin">Energy Range (MeV):</label>
+          <div class="input-group unit-group">
+            <input type="number" name="emin" id="emin" value="{{ emin or 0.1 }}" step="0.1" min="0.01" />
+            <input type="number" name="emax" id="emax" value="{{ emax or 10 }}" step="0.1" min="0.1" />
+          </div>
+          <label for="scale">Energy Scale:</label> 
+          <select id="scale" name="scale"> 
+            <option value="linear" {% if scale == "linear" %}selected{% endif %}>Linear (Recommended for narrow range)</option> 
+            <option value="log" {% if scale == "log" %}selected{% endif %}>Logarithmic (Recommended for wide range)</option> 
+          </select>
+          </select>
+
+          <hr>
+
+          <!-- 🧩 Action Buttons -->
+          <div class="button-group">
+            <button type="submit">Generate Plot</button>
+            <button type="button" id="btnGammaExcel">📊 Download Excel</button>
+            <button type="button" id="btnGammaPDF">📄 Generate Report</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- 📊 Right Panel -->
+      <div class="right-panel">
+        {% if plot_path %}
+        <div class="result">
+          <h3>Results</h3>
+          <p><b>Material 1:</b> {{ selected_material.capitalize() if selected_material != 'custom' else name1 }}</p>
+          {% if selected_material2 %}
+          <p><b>Material 2:</b> {{ selected_material2.capitalize() if selected_material2 != 'custom' else name2 }}</p>
+          {% endif %}
+          <p><b>Energy range:</b> {{ emin }} – {{ emax }} MeV</p>
+
+          <div class="plot">
+            <img src="/{{ plot_path }}?v={{ range(1, 999999) | random }}" alt="Gamma-ray interaction plot" />
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <p>© 2025 HASSAN ALMOOSA — For Educational Use Only</p>
+  </footer>
+
+  <script src="/static/js/main.js"></script>
+  <script>
+    function toggleCustomInputs(index) {
+      const select = document.getElementById(index === 1 ? "material" : "material2");
+      const customDiv = document.getElementById(index === 1 ? "custom1" : "custom2");
+      customDiv.style.display = (select && select.value === "custom") ? "grid" : "none";
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      toggleCustomInputs(1);
+      toggleCustomInputs(2);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>☢️ X-ray Interaction Visualizer</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+
+<body>
+  <!-- 🌐 Unified Navigation -->
+  <nav class="navbar">
+    <div class="nav-left">
+      <a href="/" class="brand">🎓 Medical Radiation Visualizer</a>
+    </div>
+    <div class="nav-right">
+      <a href="/">🏠 Home</a>
+      <a href="/xray" class="active">☢️ X-rays</a>
+      <a href="/gamma">⚛️ Gamma-rays</a>
+      <a href="/proton">💥 Protons</a>
+      <a href="/electron">⚡ Electrons</a>
+      <a href="/shielding">🧱 Shielding</a>
+    </div>
+  </nav>
+
+  <!-- 🧠 Main Content -->
+  <main class="container">
+    <h1>☢️ X-ray Interaction Visualizer</h1>
+    <p class="lead">
+      Explore how X-rays interact with different materials — compare
+      <b>Photoelectric</b>, <b>Compton</b>, and <b>Rayleigh</b> effects.
+    </p>
+
+    <!-- 🧩 Two-column layout -->
+    <div class="two-column">
+      <!-- 🧾 Left side: Form -->
+      <div class="left-panel">
+        <form method="POST" class="card" id="xrayForm">
+
+          <!-- 🧪 المادة الأولى -->
+          <label for="material">Primary Material (Material 1):</label>
+          <select id="material" name="material">
+            <option value="custom" {% if selected_material == 'custom' %}selected{% endif %}>Custom (manual Z₁)</option>
+            {% for m in materials %}
+              <option value="{{ m }}" {% if selected_material == m %}selected{% endif %}>{{ m.capitalize() }}</option>
+            {% endfor %}
+          </select>
+
+          <div id="custom1" style="display:none; margin-bottom:10px;">
+            <label for="name1">Custom Name (1):</label>
+            <input type="text" id="name1" name="name1" value="{{ name1 or '' }}" placeholder="Enter custom material name" />
+
+            <label for="z1">Atomic Number (Z₁):</label>
+            <input type="number" id="z1" name="z1" step="0.1" min="1" max="118" value="{{ z1 or '' }}" placeholder="e.g. 26 for Iron" />
+            
+            <label for="rho1">Density (ρ₁, g/cm³):</label>
+            <input type="number" id="rho1" name="rho1" step="0.01" min="0.001" value="{{ rho1 or '1.0' }}" placeholder="e.g. 7.8" />
+          </div>
+
+          <!-- 🧪 المادة الثانية -->
+          <label for="material2">Secondary Material (Material 2, optional):</label>
+          <select id="material2" name="material2">
+            <option value="">None (single material)</option>
+            <option value="custom" {% if selected_material2 == 'custom' %}selected{% endif %}>Custom (manual Z₂)</option>
+            {% for m in materials %}
+              <option value="{{ m }}" {% if selected_material2 == m %}selected{% endif %}>{{ m.capitalize() }}</option>
+            {% endfor %}
+          </select>
+
+          <div id="custom2" style="display:none; margin-bottom:10px;">
+            <label for="name2">Custom Name (2):</label>
+            <input type="text" id="name2" name="name2" value="{{ name2 or '' }}" placeholder="Enter custom material name" />
+
+            <label for="z2">Atomic Number (Z₂):</label>
+            <input type="number" id="z2" name="z2" step="0.1" min="1" max="118" value="{{ z2 or '' }}" placeholder="e.g. 82 for Lead" />
+            
+            <label for="rho2">Density (ρ₂, g/cm³):</label>
+            <input type="number" id="rho2" name="rho2" step="0.01" min="0.001" value="{{ rho2 or '1.0' }}" placeholder="e.g. 11.34" />
+          </div>
+
+          <!-- ⚡ نطاق الطاقة -->
+          <label for="emin">Energy range (keV):</label>
+          <div class="input-group">
+            <input type="number" name="emin" id="emin" value="{{ emin or 20 }}" step="1" min="1" />
+            <input type="number" name="emax" id="emax" value="{{ emax or 120 }}" step="1" min="2" />
+          </div>
+
+          <!-- ✅ تفعيل التأثيرات -->
+          <fieldset>
+            <legend>Select interactions to display:</legend>
+            <label class="checkbox"><input type="checkbox" name="show_photo" {% if show_photo %}checked{% endif %}> Photoelectric</label>
+            <label class="checkbox"><input type="checkbox" name="show_compton" {% if show_compton %}checked{% endif %}> Compton</label>
+            <label class="checkbox"><input type="checkbox" name="show_rayleigh" {% if show_rayleigh %}checked{% endif %}> Rayleigh</label>
+          </fieldset>
+
+          <button type="submit">Generate Plot</button>
+          <button type="button" id="downloadExcel" class="secondary">💾 Download Data (Excel)</button>
+          <button type="button" id="generateReport">📄 Generate Report (PDF)</button>
+        </form>
+      </div>
+
+      <!-- 📊 Right side: Results -->
+      <div class="right-panel">
+        {% if plot_path %}
+        <div class="result">
+          <h3>Results</h3>
+          <p><b>Material 1:</b> {{ selected_material.capitalize() }}</p>
+          {% if selected_material2 %}
+            <p><b>Compared with:</b> {{ selected_material2.capitalize() }}</p>
+          {% endif %}
+          <p><b>Atomic number (Z):</b> {{ selected_Z }}</p>
+          <p><b>Energy range:</b> {{ emin }} – {{ emax }} keV</p>
+          <p><b>Rayleigh included:</b> {{ "Yes" if show_rayleigh else "No" }}</p>
+
+          <div class="plot">
+            <img src="{{ plot_path }}" alt="X-ray interaction plot" />
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <p>© 2025 HASSAN ALMOOSA — For Educational Use Only</p>
+  </footer>
+
+  <script src="/static/js/main.js"></script>
+</body>
+</html>

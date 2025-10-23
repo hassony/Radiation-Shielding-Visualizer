@@ -1,0 +1,30 @@
+<div class="result">
+  <h3>Results</h3>
+  <p><b>Material 1:</b> {{ selected_material.capitalize() }}</p>
+  {% if selected_material2 %}
+    <p><b>Material 2:</b> {{ selected_material2.capitalize() }}</p>
+  {% endif %}
+  <p><b>Atomic number (Z₁):</b> {{ selected_Z }}</p>
+  {% if selected_Z2 %}
+    <p><b>Atomic number (Z₂):</b> {{ selected_Z2 }}</p>
+  {% endif %}
+  <p><b>Density (ρ₁):</b> {{ rho1 }} g/cm³ {% if rho2 %} | <b>ρ₂:</b> {{ rho2 }} g/cm³{% endif %}</p>
+  <p><b>Energy range:</b> {{ emin }} – {{ emax }} MeV ({{ scale.capitalize() }} scale)</p>
+
+  <div class="plot">
+    <img src="/{{ plot_path }}" alt="Gamma-ray interaction plot" />
+  </div>
+
+  <div class="note" style="margin-top:12px; font-size:0.9rem; color:#444; line-height:1.6;">
+    <p>⚛️ <b>Gamma-ray interactions overview:</b></p>
+    <ul style="margin-left:16px;">
+      <li><b>Compton scattering</b> dominates at intermediate photon energies (≈0.5–5 MeV).</li>
+      <li><b>Pair production</b> becomes significant above <b>1.022 MeV</b>, increasing with atomic number (Z² dependence).</li>
+      <li><b>Photoelectric effect</b> is negligible in the MeV range for most materials.</li>
+      <li>Higher material density (ρ) increases total attenuation (μ = μ/ρ × ρ).</li>
+    </ul>
+    <p style="margin-top:8px; font-style:italic; color:#666;">
+      All values are educational approximations — not for medical or clinical use.
+    </p>
+  </div>
+</div>

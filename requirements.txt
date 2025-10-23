@@ -1,0 +1,23 @@
+# ============================================================
+# 📦 Medical Radiation Visualizer — Project Dependencies
+# Maintainer: HASSAN ALMOOSA
+# Description:
+# Core scientific stack + Flask backend + Excel export support
+# ============================================================
+
+# === Core Scientific Libraries ===
+numpy>=1.26.0
+matplotlib>=3.9.0
+pandas>=2.2.0        # 📊 For handling tabular data and exporting Excel
+openpyxl>=3.1.2      # 📘 Required by pandas to write .xlsx files
+
+# === Web Framework ===
+Flask>=3.0.0
+
+# === Optional Utilities ===
+pyngrok>=7.0.0       # 🌐 For tunneling local Flask apps (optional)
+ipython>=8.0.0       # 🧪 For interactive testing (optional)
+
+# === Future Support (optional, can be added later) ===
+# scipy>=1.13.0       # For advanced radiation modeling
+# seaborn>=0.13.0     # For advanced statistical plots

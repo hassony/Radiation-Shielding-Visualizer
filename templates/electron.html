@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>⚡ Electrons Interaction Visualizer</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+
+<body>
+  <!-- 🌐 Navigation Bar -->
+  <nav class="navbar">
+    <div class="nav-left">
+      <a href="/" class="brand">🎓 Medical Radiation Visualizer</a>
+    </div>
+    <div class="nav-right">
+      <a href="/">🏠 Home</a>
+      <a href="/xray">☢️ X-rays</a>
+      <a href="/gamma">⚛️ Gamma-rays</a>
+      <a href="/proton">💥 Protons</a>
+      <a href="/electron" class="active">⚡ Electrons</a>
+      <a href="/shielding">🧱 Shielding</a>
+    </div>
+  </nav>
+
+  <!-- 🧠 Main Content -->
+  <main class="container">
+    <h1>⚡ Electrons Interaction Visualizer</h1>
+    <p class="lead">
+      Study how <b>electrons</b> interact with matter — coming soon.
+      This module will include <b>Stopping Power</b> (Collisional & Radiative),
+      <b>CSDA Range</b>, <b>Bragg-like Depth–Dose</b>, and
+      <b>Highland Angular Scattering</b>.
+    </p>
+
+    <div class="two-column">
+      <!-- 🧾 Left Panel (Placeholder Form) -->
+      <div class="left-panel">
+        <form method="POST" class="card proton-form" id="electronForm">
+          <label>Module under development</label>
+          <p style="margin:6px 0 14px; font-size:14px; color:#555;">
+            The following inputs will be available soon:
+          </p>
+
+          <label>Material:</label>
+          <select disabled>
+            <option>Water</option>
+          </select>
+
+          <label>Density (ρ):</label>
+          <div class="input-group">
+            <input type="number" step="0.01" value="1.00" disabled />
+            <span class="unit">g/cm³</span>
+          </div>
+
+          <label>Atomic Number (Z):</label>
+          <input type="number" step="0.1" value="7.42" disabled />
+
+          <label>Mean Excitation Energy (I):</label>
+          <div class="input-group">
+            <input type="number" step="0.1" value="75" disabled />
+            <span class="unit">eV</span>
+          </div>
+
+          <label>Energy Range (MeV):</label>
+          <div class="input-group">
+            <input type="number" step="0.1" value="0.1" disabled />
+            <input type="number" step="0.1" value="20" disabled />
+          </div>
+
+          <button type="button" disabled>Generate Plot</button>
+        </form>
+      </div>
+
+      <!-- 📊 Right Panel (Coming Soon Card) -->
+      <div class="right-panel">
+        <div class="result proton-result">
+          <h3>⚡ Electrons — Coming Soon</h3>
+          <p>
+            This module will be launched soon with the same interactive
+            AJAX-based workflow, PDF/Excel export, and academic-style reporting.
+          </p>
+
+          <div class="note" style="margin-top:14px;">
+            Planned models: Bethe (Collisional Loss), Bremsstrahlung (Radiative Loss),
+            CSDA Range Integration, and Highland Angular Scattering.
+          </div>
+
+          <div class="plot" style="text-align:center; margin-top:16px;">
+            <div class="spinner" aria-label="Loading preview"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <p>© 2025 HASSAN ALMOOSA — For Educational Use Only</p>
+    <div class="disclaimer">
+      Disclaimer: This project is for academic and educational use only.
+    </div>
+  </footer>
+
+  <script src="/static/js/main.js"></script>
+</body>
+</html>

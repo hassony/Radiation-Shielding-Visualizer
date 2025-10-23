@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>💥 Proton Interaction Visualizer</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+
+</head>
+
+<body>
+  <!-- 🌐 Navigation Bar -->
+  <nav class="navbar">
+    <div class="nav-left">
+      <a href="/" class="brand">🎓 Medical Radiation Visualizer</a>
+    </div>
+    <div class="nav-right">
+      <a href="/">🏠 Home</a>
+      <a href="/xray">☢️ X-rays</a>
+      <a href="/gamma">⚛️ Gamma-rays</a>
+      <a href="/proton" class="active">💥 Protons</a>
+      <a href="/electron">⚡ Electrons</a>
+      <a href="/shielding">🧱 Shielding</a>
+    </div>
+  </nav>
+
+  <!-- 🧠 Main Content -->
+  <main class="container">
+    <h1>💥 Proton Interaction Visualizer</h1>
+    <p class="lead">
+      Explore how <b>Protons</b> interact with matter — visualize the 
+      <b>Bragg peak</b>, <b>stopping power</b>, <b>range</b>, and <b>lateral spread</b>.
+    </p>
+
+    <div class="two-column">
+      <!-- 🧾 Left Panel -->
+      <div class="left-panel">
+        <form method="POST" id="protonForm" class="proton-form">
+          <!-- 🧱 Material -->
+          <label for="material">Material:</label>
+          <select id="material" name="material" onchange="toggleCustomInput()">
+            <option value="custom" {% if selected_material == 'custom' %}selected{% endif %}>
+              Custom (manual values)
+            </option>
+            {% for m in materials %}
+              <option value="{{ m }}" {% if selected_material == m %}selected{% endif %}>
+                {{ m.replace('_', ' ').capitalize() }}
+              </option>
+            {% endfor %}
+          </select>
+
+          <!-- 🧩 Custom Material -->
+          <div id="customMaterial" class="custom-row" style="display:none;">
+            <label for="name">Name:</label>
+            <input type="text" name="name" id="name" placeholder="e.g. Water" value="{{ name or '' }}">
+
+            <label for="z">Atomic Number (Z):</label>
+            <input type="number" name="z" id="z" step="0.1" min="1" max="118" value="{{ z or '' }}">
+
+            <label for="rho">Density (ρ):</label>
+            <div class="input-group unit-group">
+              <input type="number" name="rho" id="rho" step="0.01" min="0.01" value="{{ rho or '' }}">
+              <span class="unit">g/cm³</span>
+            </div>
+          </div>
+
+          <!-- ⚙️ Proton Parameters -->
+          <label for="E0">Initial Energy (MeV):</label>
+          <input type="number" name="E0" id="E0" value="{{ E0 or 150 }}" step="1" min="1" max="1000" />
+
+          <label for="dx">Step Size (cm):</label>
+          <input type="number" name="dx" id="dx" value="{{ dx or 0.01 }}" step="0.001" min="0.001" max="0.2" />
+
+
+
+          <!-- ⚙️ Energy Range -->
+          <label for="emin">Energy Range (MeV):</label>
+          <div class="input-group unit-group">
+            <input type="number" name="emin" id="emin" value="{{ emin or 10 }}" step="1" min="1" />
+            <input type="number" name="emax" id="emax" value="{{ emax or 250 }}" step="1" min="2" />
+          </div>
+
+          <!-- 📊 Plot Type -->
+          <label for="mode">Select Plot Type:</label>
+          <select id="mode" name="mode">
+            <option value="bragg" selected>Bragg Curve (Depth–Dose)</option>
+            <option value="stopping">Stopping Power</option>
+            <option value="range">Range vs Energy</option>
+            <option value="lateral">Lateral Spread</option>
+          </select>
+
+
+          <!-- 🧩 Action Buttons -->
+          <button type="submit">Generate Plot</button>
+          <button type="button" id="btnProtonExcel">📊 Download Excel</button>
+          <button type="button" id="btnProtonPDF">📄 Generate Report</button>
+        </form>
+      </div>
+
+      <!-- 📈 Right Panel -->
+      <div class="right-panel">
+        {% if plot_path %}
+      <div class="proton-result">
+          <h3>Results</h3>
+          <p><b>Material:</b> {{ selected_material.capitalize() if selected_material != 'custom' else name }}</p>
+          <p><b>Initial Energy:</b> {{ E0 }} MeV</p>
+          <p><b>Plot Type:</b> {{ mode.capitalize() }}</p>
+
+          <div class="plot">
+            <img src="/{{ plot_path }}?v={{ range(1, 999999) | random }}" alt="Proton interaction plot" />
+          </div>
+
+          <div class="note">
+            ⚠️ This simulation is for <b>research and educational purposes only</b> — not for clinical use.
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <p>© 2025 HASSAN ALMOOSA — For Educational Use Only</p>
+  </footer>
+
+  <script src="/static/js/main.js"></script>
+  <script>
+    function toggleCustomInput() {
+      const select = document.getElementById("material");
+      const customDiv = document.getElementById("customMaterial");
+      customDiv.style.display = (select && select.value === "custom") ? "block" : "none";
+    }
+    document.addEventListener("DOMContentLoaded", () => {
+      toggleCustomInput();
+    });
+  </script>
+</body>
+</html>

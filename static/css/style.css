@@ -1,0 +1,740 @@
+/* ================================================================
+   🌈 Medical Radiation Visualizer — Unified Style
+   Author: Hasan
+   Version: 1.0
+   Description:
+   A clean, educational design system for all modules:
+   X-ray, Electrons, Protons, Shielding, Index.
+   ================================================================= */
+
+/* ------------------------------------------------
+   ✨ Root Variables (Light Theme)
+--------------------------------------------------*/
+:root {
+  --bg: #f5f7fa;
+  --card-bg: #ffffff;
+  --text: #1e1e2e;
+  --accent: #0077b6;
+  --accent-hover: #005f86;
+  --border: #e5e7eb;
+  --radius: 12px;
+  --shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  --transition: 0.25s ease-in-out;
+}
+
+/* Dark theme (optional toggle in future) */
+[data-theme="dark"] {
+  --bg: #121212;
+  --card-bg: #1e1e1e;
+  --text: #e5e5e5;
+  --accent: #64b5f6;
+  --accent-hover: #42a5f5;
+  --border: #333;
+  --shadow: 0 4px 25px rgba(255, 255, 255, 0.05);
+}
+
+/* ------------------------------------------------
+   ⚙️ Base Layout
+--------------------------------------------------*/
+body {
+  margin: 0;
+  padding: 40px;
+  background: var(--bg);
+  font-family: "Segoe UI", "Cairo", sans-serif;
+  color: var(--text);
+  text-align: center;
+  transition: background var(--transition), color var(--transition);
+}
+
+.container {
+  max-width: 800px;
+  margin: auto;
+}
+
+/* ------------------------------------------------
+   🎓 Module Cards (for index.html)
+--------------------------------------------------*/
+.modules {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 25px;
+  justify-content: center;
+  align-items: stretch;
+  margin: 40px auto;
+  max-width: 1000px;
+  padding: 0 20px;
+}
+
+.module-card {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  padding: 25px 20px;
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+
+.module-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.module-card h2 {
+  margin-top: 0;
+  color: var(--text);
+  font-size: 1.2rem;
+}
+
+.module-card p {
+  color: #444;
+  font-size: 0.95rem;
+  margin-bottom: 18px;
+  line-height: 1.4;
+}
+
+.module-card .btn {
+  background: var(--accent);
+  color: #fff;
+  text-decoration: none;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: background var(--transition), transform var(--transition);
+}
+
+.module-card .btn:hover {
+  background: var(--accent-hover);
+  transform: translateY(-3px);
+}
+
+/* 🔹 Responsive Tweaks */
+@media (max-width: 700px) {
+  .modules {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+  }
+}
+
+
+/* ------------------------------------------------
+   🧭 Navigation & Header
+--------------------------------------------------*/
+.nav {
+  margin-bottom: 25px;
+}
+.nav a {
+  color: var(--accent);
+  text-decoration: none;
+  margin: 0 12px;
+  font-weight: 600;
+  transition: color var(--transition);
+}
+.nav a:hover {
+  color: var(--accent-hover);
+}
+
+h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #004080;
+  letter-spacing: 0.5px;
+}
+
+h3 {
+  color: var(--text);
+}
+p.lead {
+  color: #555;
+  margin-top: 0;
+}
+
+/* ------------------------------------------------
+   🧱 Form Elements
+--------------------------------------------------*/
+form {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  display: inline-block;
+  padding: 25px 35px;
+  text-align: left;
+  margin-bottom: 30px;
+  width: 100%;
+  max-width: 380px;
+  border: 1px solid var(--border);
+  transition: background var(--transition);
+}
+
+label {
+  display: block;
+  margin-top: 10px;
+  font-weight: 600;
+}
+
+input[type="number"],
+select {
+  width: 100%;
+  margin-top: 6px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
+  background: #fff;
+}
+input:focus,
+select:focus {
+  border-color: var(--accent);
+}
+
+button {
+  background-color: var(--accent);
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-top: 15px;
+  width: 100%;
+  font-weight: 600;
+  font-size: 15px;
+  transition: background var(--transition), transform var(--transition);
+}
+button:hover {
+  background-color: var(--accent-hover);
+  transform: translateY(-2px);
+}
+
+/* ------------------------------------------------
+   🧾 Info Notes / Cards
+--------------------------------------------------*/
+.note {
+  background: #e8f6ff;
+  color: #064d72;
+  border: 1px solid #bde3fb;
+  border-radius: 8px;
+  padding: 10px 15px;
+  margin: 20px auto;
+  max-width: 640px;
+  font-size: 14px;
+  text-align: center;
+}
+
+/* ------------------------------------------------
+   📊 Result Section
+--------------------------------------------------*/
+.result {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  max-width: 800px;
+  margin: 30px auto;
+  padding: 25px;
+  text-align: left;
+  transition: background var(--transition);
+}
+.result h3 {
+  margin-top: 0;
+}
+.result p {
+  font-size: 14px;
+  margin: 4px 0;
+}
+.plot img {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin-top: 10px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
+}
+
+/* ------------------------------------------------
+   🧭 Main Menu Buttons (index.html)
+--------------------------------------------------*/
+.menu {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 25px;
+}
+.btn {
+  background: var(--accent);
+  color: #fff;
+  padding: 12px 24px;
+  border-radius: 10px;
+  margin: 10px;
+  text-decoration: none;
+  font-weight: bold;
+  transition: background var(--transition), transform var(--transition);
+}
+.btn:hover {
+  background: var(--accent-hover);
+  transform: translateY(-2px);
+}
+
+/* ------------------------------------------------
+   🌙 Future Dark Mode toggle (optional)
+--------------------------------------------------*/
+.theme-toggle {
+  position: fixed;
+  top: 15px;
+  right: 20px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 38px;
+  height: 38px;
+  cursor: pointer;
+  font-size: 18px;
+  transition: background var(--transition), transform var(--transition);
+}
+.theme-toggle:hover {
+  background: var(--accent-hover);
+  transform: rotate(20deg);
+}
+
+
+/* ------------------------------------------------
+   📱 Footer
+--------------------------------------------------*/
+
+footer {
+  margin-top: 40px;
+  font-size: 0.9rem;
+  color: #666;
+  border-top: 1px solid var(--border);
+  padding-top: 15px;
+}
+
+
+/* ------------------------------------------------
+   📱 Responsive
+--------------------------------------------------*/
+@media (max-width: 600px) {
+  body {
+    padding: 25px;
+  }
+  form {
+    padding: 20px;
+    width: 100%;
+  }
+  h1 {
+    font-size: 1.5rem;
+  }
+}
+
+/* ================================================================
+   🎓 Academic Unified Layout — Navbar & Enhanced Cards
+================================================================ */
+
+/* ---------------------------
+   🧭 Top Navigation Bar
+----------------------------*/
+.navbar {
+  background: var(--card-bg);
+  box-shadow: var(--shadow);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 40px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.navbar .brand {
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 1rem;
+  text-decoration: none;
+}
+
+.navbar .nav-right a {
+  margin-left: 20px;
+  text-decoration: none;
+  color: var(--text);
+  font-weight: 600;
+  transition: color var(--transition);
+}
+
+.navbar .nav-right a:hover,
+.navbar .nav-right a.active {
+  color: var(--accent);
+}
+
+/* ---------------------------
+   🧾 Card layout for modules (X-ray etc)
+----------------------------*/
+.card {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  padding: 25px 30px;
+  max-width: 400px;
+  margin: 30px auto;
+  text-align: left;
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
+}
+
+.input-group {
+  display: flex;
+  gap: 10px;
+}
+
+.checkbox {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+/* ---------------------------
+   🧠 Headings & Container Refinements
+----------------------------*/
+main.container {
+  margin-top: 40px;
+  text-align: center;
+}
+
+main h1 {
+  font-size: 1.9rem;
+  font-weight: 700;
+  color: #003366;
+}
+
+main .lead {
+  color: #444;
+  font-size: 1rem;
+  max-width: 700px;
+  margin: 0 auto 25px;
+}
+
+/* ============================================================
+Two-Column Layout (Form | Plot)
+============================================================ */
+
+.two-column {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 80px;
+  flex-wrap: nowrap;           
+  margin-top: 30px;
+}
+
+.left-panel {
+  flex: 1;
+  max-width: 360px;
+  min-width: 300px;
+}
+
+.right-panel {
+  flex: 2;                  
+  min-width: 600px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* 🎯 Results box */
+.right-panel .result {
+  background: #fff;
+  border-radius: 14px;
+  padding: 25px 30px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
+  width: 100%;
+}
+
+/* 📊 Plot image */
+.right-panel .plot img {
+  display: block;
+  width: 100%;
+  max-width: 800px;
+  height: auto;
+  margin: 15px auto 0;
+  border-radius: 10px;
+}
+
+/* 📱 Responsive fallback */
+@media (max-width: 1100px) {
+  .two-column {
+    flex-direction: column;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .left-panel,
+  .right-panel {
+    min-width: auto;
+    max-width: 95%;
+  }
+}
+
+/* ============================================================
+   🧩 Custom Material Input Styling (name + Z)
+   ============================================================ */
+
+/* ============================================================
+   ✨ Adjust layout for Custom Material box (prevent overflow)
+   ============================================================ */
+
+#custom1,
+#custom2 {
+  background: #fafafa;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-top: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: 0.3s ease;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+#custom1:hover,
+#custom2:hover {
+  border-color: var(--accent, #0077b6);
+  box-shadow: 0 2px 6px rgba(0, 119, 182, 0.15);
+}
+
+#custom1 label,
+#custom2 label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: #333;
+}
+
+#custom1 input,
+#custom2 input {
+  width: 95%;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 15px;
+  transition: 0.2s ease;
+  box-sizing: border-box;
+}
+
+#custom1 input:focus,
+#custom2 input:focus {
+  border-color: var(--accent, #0077b6);
+  box-shadow: 0 0 0 2px rgba(0, 119, 182, 0.2);
+  outline: none;
+}
+
+#custom1 input[type="number"]::-webkit-inner-spin-button,
+#custom2 input[type="number"]::-webkit-inner-spin-button {
+  opacity: 0.5;
+}
+
+/* Optional small animation when showing custom box */
+#custom1,
+#custom2 {
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+
+
+/* ================================
+   🔄 Loading Spinner Animation
+================================ */
+.spinner {
+  width: 48px;
+  height: 48px;
+  border: 5px solid rgba(0,0,0,0.1);
+  border-top-color: #5e72e4;
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+  margin: 0 auto;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+
+/* ---------------------------
+   🧩 Footer Enhancement
+----------------------------*/
+footer {
+  text-align: center;
+  margin-top: 60px;
+  padding: 15px 0;
+  font-size: 0.9rem;
+  color: #666;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.disclaimer {
+  margin-top: 12px;
+  font-size: 0.9rem;
+  color: #b3261e;            /* accessible red */
+  background: #fff5f5;
+  border: 1px solid #f1c0c0;
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+/* ============================================================
+   ⚛️ Proton Module — Form & Results Consistency
+============================================================ */
+.proton-form {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  padding: 25px 30px;
+  text-align: left;
+  max-width: 380px;
+  margin: auto;
+  transition: background var(--transition), transform var(--transition);
+}
+
+.proton-form:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
+}
+
+.proton-form label {
+  font-weight: 600;
+  margin-top: 12px;
+  display: block;
+}
+
+.proton-form input[type="number"],
+.proton-form select {
+  width: 100%;
+  margin-top: 6px;
+  padding: 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
+  background: #fff;
+  box-sizing: border-box;
+}
+
+.proton-form input:focus,
+.proton-form select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(0, 119, 182, 0.2);
+}
+
+/* 🎯 Buttons */
+.proton-form button {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  padding: 10px;
+  margin-top: 12px;
+  cursor: pointer;
+  width: 100%;
+  transition: all var(--transition);
+}
+
+.proton-form button:hover {
+  background: var(--accent-hover);
+  transform: translateY(-2px);
+}
+
+/* 📊 Proton Result Card */
+.proton-result {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  padding: 25px 30px;
+  text-align: left;
+  margin: 25px auto;
+  max-width: 800px;
+}
+
+.proton-result h3 {
+  margin-top: 0;
+  color: #003366;
+}
+
+.proton-result .plot img {
+  width: 100%;
+  border-radius: 8px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
+  margin-top: 10px;
+}
+
+/* ============================================================
+   ✏️ Proton Form — unify text input style
+============================================================ */
+.proton-form input[type="text"] {
+  width: 100%;
+  margin-top: 6px;
+  padding: 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
+  background: #fff;
+  box-sizing: border-box;
+  transition: border var(--transition), box-shadow var(--transition);
+}
+
+.proton-form input[type="text"]:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(0, 119, 182, 0.2);
+}
+
+.proton-result .note {
+  margin-top: 15px;
+  background: #fff5f5;
+  color: #8b0000;
+  border: 1px solid #f1c0c0;
+  border-radius: 6px;
+  padding: 8px 12px;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+/* ✅ Responsive fix */
+@media (max-width: 700px) {
+  .proton-form {
+    width: 100%;
+    padding: 20px;
+  }
+}
+
+/* ⚙️ Proton alignment refinement — remove extra gaps */
+.result .meta p {
+  margin-top: 2px;
+  margin-bottom: 2px;
+  line-height: 1.4;
+}
+
+.result h3 {
+  margin-bottom: 8px;
+  margin-top: 0;
+}
+
+/* يحافظ على الاتساق العام */
+.result {
+  padding-top: 18px;
+}

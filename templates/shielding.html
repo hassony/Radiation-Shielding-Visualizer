@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🧱 Radiation Shielding Visualizer</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+
+<body>
+  <!-- 🌐 Navigation Bar -->
+  <nav class="navbar">
+    <div class="nav-left">
+      <a href="/" class="brand">🎓 Medical Radiation Visualizer</a>
+    </div>
+    <div class="nav-right">
+      <a href="/">🏠 Home</a>
+      <a href="/xray">☢️ X-rays</a>
+      <a href="/gamma">⚛️ Gamma-rays</a>
+      <a href="/proton">💥 Protons</a>
+      <a href="/electron">⚡ Electrons</a>
+      <a href="/shielding" class="active">🧱 Shielding</a>
+    </div>
+  </nav>
+
+  <!-- 🧠 Main Content -->
+  <main class="container">
+    <h1>🧱 Radiation Shielding Visualizer</h1>
+    <p class="lead">
+      Analyze how different <b>materials</b> attenuate ionizing radiation —
+      this module will help estimate <b>half-value layers (HVL)</b>,
+      <b>tenth-value layers (TVL)</b>, and <b>shielding thickness</b> for X-rays,
+      gamma rays, and electrons.
+      <br><br><i>Coming soon...</i>
+    </p>
+
+    <div class="two-column">
+      <!-- 🧾 Left Panel (Placeholder Form) -->
+      <div class="left-panel">
+        <form method="POST" class="card proton-form" id="shieldingForm">
+          <label>Module under development</label>
+          <p style="margin:6px 0 14px; font-size:14px; color:#555;">
+            Input controls will be enabled soon:
+          </p>
+
+          <label>Radiation Type:</label>
+          <select disabled>
+            <option>X-rays</option>
+            <option>Gamma-rays</option>
+            <option>Electrons</option>
+          </select>
+
+          <label>Material:</label>
+          <select disabled>
+            <option>Lead</option>
+            <option>Concrete</option>
+            <option>Water</option>
+          </select>
+
+          <label>Density (ρ):</label>
+          <div class="input-group">
+            <input type="number" step="0.01" value="11.34" disabled />
+            <span class="unit">g/cm³</span>
+          </div>
+
+          <label>Energy (MeV):</label>
+          <input type="number" step="0.1" value="1.25" disabled />
+
+          <button type="button" disabled>Compute Shielding</button>
+        </form>
+      </div>
+
+      <!-- 📊 Right Panel (Coming Soon Card) -->
+      <div class="right-panel">
+        <div class="result proton-result">
+          <h3>🧱 Shielding — Coming Soon</h3>
+          <p>
+            This module will allow users to calculate
+            <b>radiation attenuation</b> and determine
+            required shielding thickness for safety levels.
+          </p>
+
+          <div class="note" style="margin-top:14px;">
+            Planned models: HVL/TVL calculation, exponential attenuation law,
+            build-up factors, and multi-layer composite shields.
+          </div>
+
+          <div class="plot" style="text-align:center; margin-top:16px;">
+            <div class="spinner" aria-label="Loading preview"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <p>© 2025 HASSAN ALMOOSA — For Educational Use Only</p>
+    <div class="disclaimer">
+      Disclaimer: This project is for academic and educational use only.
+    </div>
+  </footer>
+
+  <script src="/static/js/main.js"></script>
+</body>
+</html>
