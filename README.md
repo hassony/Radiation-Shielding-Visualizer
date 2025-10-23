@@ -31,6 +31,16 @@ This project provides simplified, didactic simulations of major radiation–matt
 
 > **Note:** All models are simplified for teaching and research only — they are *not* to be used for clinical dose calculation or patient treatment planning.
 
+
+---
+
+---
+### 🔬 Interface Preview
+![Home Screenshot](static/screenshots/home.png)
+![X-ray Demo](static/screenshots/xray-demo.png)
+![Gamma-ray Demo](static/screenshots/gammaraya-demo.png)
+
+
 ---
 
 ## 🧱 Project Structure
@@ -168,17 +178,6 @@ public_url = ngrok.connect(5000)
 print("App running at:", public_url)
 ```
 
----
-
-## 🧠 Example Screenshots
-
-|               X-rays (K-edge)               |             Gamma (Log vs Linear)            |
-| :-----------------------------------------: | :------------------------------------------: |
-| ![X-ray Demo](static/plots/xray_sample.png) | ![Gamma Demo](static/plots/gamma_sample.png) |
-
-*(These images are generated when running the app.)*
-
----
 
 ## ⚠️ Disclaimer
 
