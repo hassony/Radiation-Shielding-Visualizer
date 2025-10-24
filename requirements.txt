@@ -18,6 +18,7 @@ Flask>=3.0.0
 # === Optional Utilities ===
 pyngrok>=7.0.0       # 🌐 For tunneling local Flask apps (optional)
 ipython>=8.0.0       # 🧪 For interactive testing (optional)
+gunicorn
 
 # === Future Support (optional, can be added later) ===
 # scipy>=1.13.0       # For advanced radiation modeling
