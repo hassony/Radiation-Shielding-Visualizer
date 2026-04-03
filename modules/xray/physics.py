@@ -71,10 +71,11 @@ L_EDGE_MAP = {
 }
 
 # ────────────────────────────────────────────────
-# Jump Factors (Approximate Ratios Remaining after Loss)
+# Edge factors: attenuation drops below the shell threshold because that shell
+# no longer contributes to photoelectric absorption.
 # ────────────────────────────────────────────────
-K_JUMP_FACTOR = 0.15 
-L_JUMP_FACTOR = 0.05 
+K_JUMP_FACTOR = 0.70
+L_JUMP_FACTOR = 0.35
 
 # ────────────────────────────────────────────────
 # Photon energy grid (in keV)
@@ -93,40 +94,67 @@ def energy_grid(emin: float = 20.0, emax: float = 120.0, n: int = 300) -> np.nda
 # ────────────────────────────────────────────────
 def photoelectric_rel(Z: float, E_keV: np.ndarray, E_K_keV: float = 1.0, E_L_keV: float = 0.1, rho: float = 1.0) -> np.ndarray:
     """
-    Photoelectric effect ~ Z^3 / E^3.5 * rho (مُعدلة لتشمل الكثافة وحواف K و L).
+    Didactic photoelectric proxy:
+    strong Z-dependence, steep energy falloff, and shell-edge suppression
+    below the K/L thresholds.
     """
-    pe_base = (Z ** 3) / (E_keV ** 3.5)
+    E = np.asarray(E_keV, dtype=float)
+    pe_base = 0.005 * (Z ** 4.8) / (E ** 3.2)
     
-    # تطبيق حواف الامتصاص
-    mask_between_l_k = (E_keV >= E_L_keV) & (E_keV < E_K_keV)
+    # Shell-specific photoelectric channels close below each edge.
+    mask_between_l_k = (E >= E_L_keV) & (E < E_K_keV)
     pe_base[mask_between_l_k] *= K_JUMP_FACTOR
 
-    mask_below_l = E_keV < E_L_keV
+    mask_below_l = E < E_L_keV
     pe_base[mask_below_l] *= L_JUMP_FACTOR
     
-    # 🌟 ضرب النتيجة النهائية بالكثافة
     return pe_base * rho
 
 
 def compton_rel(Z: float, E_keV: np.ndarray, rho: float = 1.0) -> np.ndarray:
     """
-    Compton scattering ~ Z * log(E) / E^1.2 * rho (مُعدلة لتشمل الكثافة).
+    Didactic Compton proxy:
+    mostly follows electron density, so only weakly dependent on Z/A and
+    more strongly on bulk density for linear attenuation.
     """
-    # 🌟 ضرب النتيجة النهائية بالكثافة
-    return Z * np.log(E_keV + 1) / (E_keV ** 1.2) * rho
+    E = np.asarray(E_keV, dtype=float)
+    electron_density_factor = 1.0 + 0.002 * (max(float(Z), 1.0) - 7.4)
+    return 0.18 * electron_density_factor * np.log(E + 1.0) / (E ** 0.65) * rho
 
 
 def rayleigh_rel(Z: float, E_keV: np.ndarray, rho: float = 1.0) -> np.ndarray:
     """
-    Rayleigh (coherent) scattering ~ Z^2 / E^2.2 * rho (مُعدلة لتشمل الكثافة).
+    Didactic Rayleigh proxy:
+    coherent scattering rises with Z but remains smaller than photoelectric
+    absorption for high-Z materials in the low diagnostic-keV regime.
     """
-    # 🌟 ضرب النتيجة النهائية بالكثافة
-    return (Z ** 2) / (E_keV ** 2.2) * rho
+    E = np.asarray(E_keV, dtype=float)
+    return 0.012 * (Z ** 1.8) / (E ** 2.0) * rho
 
 
 # ────────────────────────────────────────────────
 # Normalization helper
 # ────────────────────────────────────────────────
+def interaction_components(
+    Z: float,
+    E_keV: np.ndarray,
+    E_K_keV: float = 1.0,
+    E_L_keV: float = 0.1,
+    rho: float = 1.0,
+):
+    """
+    Return the three X-ray interaction proxy curves without normalization.
+
+    These are didactic attenuation-like magnitudes in arbitrary units, used
+    consistently by the plot, report, and Excel export layers.
+    """
+    return {
+        "Photoelectric": photoelectric_rel(Z, E_keV, E_K_keV, E_L_keV, rho),
+        "Compton": compton_rel(Z, E_keV, rho),
+        "Rayleigh": rayleigh_rel(Z, E_keV, rho),
+    }
+
+
 def normalize_interactions(*arrays):
     """
     Normalize any number of interaction arrays so that

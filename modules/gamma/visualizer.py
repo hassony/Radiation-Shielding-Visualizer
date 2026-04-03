@@ -90,12 +90,12 @@ def plot_gamma(
         # رسم الخط العمودي
         ax.axvline(x=threshold, color="red", linestyle="--", linewidth=1.4, alpha=0.7)
 
-        # الحصول على حدود المحور الصادي
-        ymin, ymax = ax.get_ylim()
-
-        # حساب المنتصف الهندسي للمحور اللوغاريتمي
-        # هذا هو التغيير الرئيسي
-        mid_position_y = np.sqrt(ymin * ymax)
+        positive_curves = [y1_photo, y1_compton, y1_pair, y1_total]
+        if mat2_enabled:
+            positive_curves.extend([y2_photo, y2_compton, y2_pair, y2_total])
+        ymin = min(float(np.min(curve)) for curve in positive_curves)
+        ymax = max(float(np.max(curve)) for curve in positive_curves)
+        mid_position_y = np.sqrt(max(ymin, 1e-12) * max(ymax, 1e-12))
 
         # إضافة النص في المنتصف البصري الصحيح
         ax.text(

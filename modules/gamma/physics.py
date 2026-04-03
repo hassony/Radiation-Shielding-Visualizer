@@ -27,12 +27,14 @@ def energy_grid(emin_mev: float, emax_mev: float, points: int = 300, scale: str 
 def _photoelectric_mu_over_rho(Z: float, E_mev: np.ndarray) -> np.ndarray:
     """
     Didactic Photoelectric model.
-    Strongly dependent on Z (~Z^4) and E (~1/E^3).
+    Strongly dependent on Z and rapidly suppressed with energy so that it
+    matters near the low-energy end, but becomes small in the MeV regime.
     """
     E = np.asarray(E_mev, dtype=float)
-    # Heuristic scaling constant to produce reasonable values
-    k = 4e-3
-    mu_rho = k * (Z**4) / (E**3)
+    # Tuned to keep photoelectric absorption competitive near ~0.1 MeV for
+    # high-Z materials while letting Compton dominate through most of 0.5–5 MeV.
+    k = 7e-11
+    mu_rho = k * (Z**4) / (E**3.5)
     return np.clip(mu_rho, 1e-6, None)
 
 

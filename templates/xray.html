@@ -28,7 +28,7 @@
     <h1>☢️ X-ray Interaction Visualizer</h1>
     <p class="lead">
       Explore how X-rays interact with different materials — compare
-      <b>Photoelectric</b>, <b>Compton</b>, and <b>Rayleigh</b> effects.
+      <b>Photoelectric</b>, <b>Compton</b>, and <b>Rayleigh</b> attenuation components.
     </p>
 
     <!-- 🧩 Two-column layout -->
@@ -104,16 +104,30 @@
         {% if plot_path %}
         <div class="result">
           <h3>Results</h3>
-          <p><b>Material 1:</b> {{ selected_material.capitalize() }}</p>
-          {% if selected_material2 %}
-            <p><b>Compared with:</b> {{ selected_material2.capitalize() }}</p>
+          <p><b>Material 1:</b> {{ material_label1 }}</p>
+          {% if rho1 %}
+            <p><b>Density (ρ₁):</b> {{ rho1 }} g/cm³</p>
           {% endif %}
-          <p><b>Atomic number (Z):</b> {{ selected_Z }}</p>
+          {% if material_label2 %}
+            <p><b>Compared with:</b> {{ material_label2 }}</p>
+            {% if rho2 %}
+              <p><b>Density (ρ₂):</b> {{ rho2 }} g/cm³</p>
+            {% endif %}
+          {% endif %}
+          <p><b>Atomic number (Z₁):</b> {{ selected_Z }}</p>
+          {% if selected_Z2 %}
+            <p><b>Atomic number (Z₂):</b> {{ selected_Z2 }}</p>
+          {% endif %}
           <p><b>Energy range:</b> {{ emin }} – {{ emax }} keV</p>
+          <p><b>Display:</b> {{ scale }}</p>
           <p><b>Rayleigh included:</b> {{ "Yes" if show_rayleigh else "No" }}</p>
 
           <div class="plot">
             <img src="{{ plot_path }}" alt="X-ray interaction plot" />
+          </div>
+
+          <div class="note" style="margin-top:12px; font-size:0.9rem; color:#555;">
+            <p>🔬 Curves are shown on an absolute attenuation-proxy scale, so density and material-to-material magnitude differences remain visible.</p>
           </div>
         </div>
         {% endif %}

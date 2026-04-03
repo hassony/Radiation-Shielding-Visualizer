@@ -2,12 +2,12 @@
   <h3>Results</h3>
 
   <div class="meta">
-    <p><b>Material:</b> {{ material.replace('_', ' ').capitalize() if material else 'N/A' }}</p>
+    <p><b>Material:</b> {{ material_label or 'N/A' }}</p>
     {% if E0 is defined %}
     <p><b>Initial Energy:</b> {{ "%.3g"|format(E0) }} MeV</p>
     {% endif %}
-    {% if mode is defined %}
-    <p><b>Plot Type:</b> {{ mode.capitalize() }}</p>
+    {% if mode_label is defined %}
+    <p><b>Plot Type:</b> {{ mode_label }}</p>
     {% endif %}
   </div>
 

@@ -11,12 +11,7 @@ Handles plotting for:
 
 import matplotlib.pyplot as plt
 import numpy as np
-from .physics import (
-    photoelectric_rel,
-    compton_rel,
-    rayleigh_rel,
-    normalize_interactions
-)
+from .physics import interaction_components
 
 # ────────────────────────────────────────────────
 # Visual style
@@ -52,22 +47,18 @@ def plot_interactions(
     show_compton=True,
     show_rayleigh=True
 ):
-    """Plot normalized interaction probabilities for selected processes (linear scale)."""
+    """Plot attenuation-like interaction proxies for a single material."""
 
-    # Compute ALL three interactions (always)
-    # 🌟 تمرير E_K، E_L، و rho
-    pe = photoelectric_rel(Z, E_keV, E_K, E_L, rho)
-    co = compton_rel(Z, E_keV, rho)
-    ra = rayleigh_rel(Z, E_keV, rho)
-
-    # Normalize ALL three interactions
-    pe_n, co_n, ra_n = normalize_interactions(pe, co, ra)
+    components = interaction_components(Z, E_keV, E_K, E_L, rho)
+    pe = np.clip(components["Photoelectric"], 1e-12, None)
+    co = np.clip(components["Compton"], 1e-12, None)
+    ra = np.clip(components["Rayleigh"], 1e-12, None)
 
     # Plot
     fig, ax = plt.subplots(figsize=(8, 5))
 
     if show_photo:
-        ax.plot(E_keV, pe_n, color=COLORS["photoelectric"], lw=2, label="Photoelectric")
+        ax.plot(E_keV, pe, color=COLORS["photoelectric"], lw=2, label="Photoelectric")
         
         # 🌟 إضافة خط K-edge العمودي 
         if E_K < E_keV.max() and E_K > E_keV.min():
@@ -79,16 +70,16 @@ def plot_interactions(
             ax.axvline(x=E_L, color=COLORS["photoelectric"], linestyle="-.", alpha=0.4)
             
     if show_compton:
-        ax.plot(E_keV, co_n, color=COLORS["compton"], lw=2, label="Compton")
+        ax.plot(E_keV, co, color=COLORS["compton"], lw=2, label="Compton")
     if show_rayleigh:
-        ax.plot(E_keV, ra_n, color=COLORS["rayleigh"], lw=2, label="Rayleigh")
+        ax.plot(E_keV, ra, color=COLORS["rayleigh"], lw=2, label="Rayleigh")
 
-    # Linear scale
     ax.set_xlim(E_keV.min(), E_keV.max())
+    ax.set_yscale("log")
     ax.set_xlabel("Photon Energy (keV)", fontsize=12)
-    ax.set_ylabel("Normalized Probability", fontsize=12)
-    ax.set_title(title or "X-ray Interaction Probabilities", fontsize=13)
-    ax.grid(True, linestyle="--", alpha=0.4)
+    ax.set_ylabel("Relative Attenuation Proxy (a.u.)", fontsize=12)
+    ax.set_title(title or "X-ray Interaction Components", fontsize=13)
+    ax.grid(True, which="both", linestyle="--", alpha=0.4)
     ax.legend()
 
     # Simplify frame
@@ -116,21 +107,17 @@ def compare_materials(
     rho2: float = 1.0,  # 🌟 إضافة الكثافة 2
     show_rayleigh: bool = True
 ):
-    """Compare normalized interaction trends between two materials."""
+    """Compare attenuation-like interaction proxies for two materials."""
     fig, ax = plt.subplots(figsize=(9, 5))
 
-    # 🌟 تمرير جميع المتغيرات الجديدة (E_K1, E_L1, rho1)
-    pe1, co1, ra1 = normalize_interactions(
-        photoelectric_rel(Z1, E_keV, E_K1, E_L1, rho1),
-        compton_rel(Z1, E_keV, rho1),
-        rayleigh_rel(Z1, E_keV, rho1)
-    )
-    # 🌟 تمرير جميع المتغيرات الجديدة (E_K2, E_L2, rho2)
-    pe2, co2, ra2 = normalize_interactions(
-        photoelectric_rel(Z2, E_keV, E_K2, E_L2, rho2),
-        compton_rel(Z2, E_keV, rho2),
-        rayleigh_rel(Z2, E_keV, rho2)
-    )
+    comp1 = interaction_components(Z1, E_keV, E_K1, E_L1, rho1)
+    comp2 = interaction_components(Z2, E_keV, E_K2, E_L2, rho2)
+    pe1 = np.clip(comp1["Photoelectric"], 1e-12, None)
+    co1 = np.clip(comp1["Compton"], 1e-12, None)
+    ra1 = np.clip(comp1["Rayleigh"], 1e-12, None)
+    pe2 = np.clip(comp2["Photoelectric"], 1e-12, None)
+    co2 = np.clip(comp2["Compton"], 1e-12, None)
+    ra2 = np.clip(comp2["Rayleigh"], 1e-12, None)
 
     # Photoelectric
     ax.plot(E_keV, pe1, color=COLORS["photoelectric"], linestyle="-",  label=f"{name1} - Photoelectric")
@@ -159,10 +146,11 @@ def compare_materials(
 
 
     ax.set_xlabel("Photon Energy (keV)")
-    ax.set_ylabel("Normalized Probability")
+    ax.set_ylabel("Relative Attenuation Proxy (a.u.)")
     ax.set_title(f"Interaction Comparison: {name1} vs {name2}")
+    ax.set_yscale("log")
     ax.legend(frameon=True, facecolor="white", edgecolor="#ddd")
-    ax.grid(True, linestyle="--", alpha=0.4)
+    ax.grid(True, which="both", linestyle="--", alpha=0.4)
 
     for spine in ["top", "right"]:
         ax.spines[spine].set_visible(False)

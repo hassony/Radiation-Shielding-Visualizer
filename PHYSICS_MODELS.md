@@ -1,45 +1,41 @@
-# ⚙️ Physics Models Implemented
+# Physics Models Implemented
 
-## ☢️ X-ray
-- Mass attenuation coefficients from NIST XCOM tables.  
-- Dependence μ/ρ ≈ Z³ / E³ for photoelectric region.  
-- Compton scattering via Klein–Nishina approximation.
-
----
-
-## ⚛️ Gamma-ray
-- **Klein–Nishina:** differential cross-section for Compton scattering.  
-- **Bethe–Heitler:** pair-production cross-section for E > 1.022 MeV.  
-- Density effects via ρ scaling.
+## X-ray
+- Uses didactic attenuation-proxy curves in arbitrary units rather than direct XCOM tables.
+- Photoelectric proxy scales strongly with `Z` and falls rapidly with energy, with simple K-edge and L-edge modifiers.
+- Compton and Rayleigh are modeled with smooth heuristic trends suitable for qualitative comparison.
+- The plot, PDF report, and Excel export now use the same absolute component curves.
+- Density scales the component magnitudes, so it affects absolute attenuation level, not only internal normalization.
 
 ---
 
-## 💥 Proton
-- **Bethe–Bloch formula** for stopping power:  
-  \[
-  -\frac{dE}{dx} = \frac{4\pi N_A r_e^2 m_e c^2 Z}{A\beta^2}
-  \left[\ln\!\frac{2m_e c^2\beta^2\gamma^2}{I} - \beta^2\right]
-  \]
-- **Range:** numerical integration over E.  
-- **Bragg curve:** S(E) × density correction.
+## Gamma-ray
+- Uses qualitative mass-attenuation heuristics, not exact Klein-Nishina / Bethe-Heitler cross-sections.
+- Photoelectric absorption is strongest near the low-energy end and drops quickly through the MeV range.
+- Compton scattering dominates through most of the mid-MeV range for typical materials.
+- Pair production turns on at `1.022 MeV` and grows with energy and atomic number.
+- The x-axis scale follows the user selection (`linear` or `log`), while the y-axis remains logarithmic.
 
 ---
 
-## ⚡ Electron (Planned)
-- **Bethe formula** for collisional loss.  
-- **Bremsstrahlung** radiative loss ≈ C·Z·E.  
-- **Total stopping power:** S_total = S_coll + S_rad.  
-- **CSDA range:** R = ∫ dE / S_total(E).  
-- **Highland scattering:** θ₀ ≈ (13.6 MeV)/(β p) √(x/X₀)[1 + 0.038 ln(x/X₀)].
+## Proton
+- Uses one unified Bethe-inspired stopping-power model across all proton outputs.
+- Bragg curve, stopping-power curve, and CSDA range are derived from the same material definition and the same stopping-power law.
+- Custom proton materials are resolved into the same material-spec pipeline as built-in materials.
+- Lateral spread uses a Highland-style estimate with an approximate radiation length inferred from effective material properties.
 
 ---
 
-## 🧱 Shielding (Planned)
-- **Exponential attenuation law**.  
-- **Build-up factors** for broad beam.  
-- **HVL/TVL thickness** calculations.
+## Electron (Planned)
+- Collisional and radiative loss models are planned, but not implemented in this version.
 
 ---
 
-### 🔬 Constants and Sources
-Values of Z, A, ρ, I (eV) taken from **NIST ESTAR / ICRU 44 / NASA TP-2274**.
+## Shielding (Planned)
+- Exponential attenuation, HVL/TVL, and broad-beam build-up models are planned, but not implemented in this version.
+
+---
+
+## Scope
+- These models are intended for teaching, visualization, and qualitative trend analysis.
+- They are not validated for clinical dose calculation, shielding design approval, or reference-data substitution.

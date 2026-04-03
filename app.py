@@ -37,11 +37,114 @@ from reportlab.lib.units import inch
 # ==================  LOCAL FONT REGISTRATION  ================
 # ============================================================
 
-FONT_PATH = os.path.join("static", "fonts", "DejaVuSans.ttf")
-if os.path.exists(FONT_PATH):
-    pdfmetrics.registerFont(TTFont("DejaVuSans", FONT_PATH))
-else:
-    print("Warning: Font file not found at", FONT_PATH)
+def _configure_pdf_fonts():
+    project_font_dir = os.path.join("static", "fonts")
+    candidates = [
+        (
+            "DejaVuSans",
+            {
+                "normal": os.path.join(project_font_dir, "DejaVuSans.ttf"),
+                "bold": os.path.join(project_font_dir, "DejaVuSans-Bold.ttf"),
+                "italic": os.path.join(project_font_dir, "DejaVuSans-Oblique.ttf"),
+                "boldItalic": os.path.join(project_font_dir, "DejaVuSans-BoldOblique.ttf"),
+            },
+        ),
+        (
+            "Arial",
+            {
+                "normal": r"C:\Windows\Fonts\arial.ttf",
+                "bold": r"C:\Windows\Fonts\arialbd.ttf",
+                "italic": r"C:\Windows\Fonts\ariali.ttf",
+                "boldItalic": r"C:\Windows\Fonts\arialbi.ttf",
+            },
+        ),
+    ]
+
+    for family, paths in candidates:
+        normal_path = paths["normal"]
+        if not os.path.exists(normal_path):
+            continue
+
+        variants = {
+            "normal": family,
+            "bold": f"{family}-Bold",
+            "italic": f"{family}-Italic",
+            "boldItalic": f"{family}-BoldItalic",
+        }
+        pdfmetrics.registerFont(TTFont(variants["normal"], normal_path))
+
+        for key in ("bold", "italic", "boldItalic"):
+            path = paths[key]
+            if os.path.exists(path):
+                pdfmetrics.registerFont(TTFont(variants[key], path))
+            else:
+                variants[key] = variants["normal"]
+
+        pdfmetrics.registerFontFamily(
+            family,
+            normal=variants["normal"],
+            bold=variants["bold"],
+            italic=variants["italic"],
+            boldItalic=variants["boldItalic"],
+        )
+        return variants
+
+    print("Warning: No project/system TrueType font found for PDF export. Falling back to Helvetica.")
+    return {
+        "normal": "Helvetica",
+        "bold": "Helvetica-Bold",
+        "italic": "Helvetica-Oblique",
+        "boldItalic": "Helvetica-BoldOblique",
+    }
+
+
+PDF_FONTS = _configure_pdf_fonts()
+PDF_FONT = PDF_FONTS["normal"]
+PDF_FONT_BOLD = PDF_FONTS["bold"]
+PDF_FONT_ITALIC = PDF_FONTS["italic"]
+
+PDF_TEXT_REPLACEMENTS = {
+    "ρ": "rho",
+    "σ": "sigma",
+    "μ": "mu",
+    "₀": "0",
+    "₁": "1",
+    "₂": "2",
+    "₃": "3",
+    "₄": "4",
+    "₅": "5",
+    "₆": "6",
+    "₇": "7",
+    "₈": "8",
+    "₉": "9",
+    "²": "^2",
+    "³": "^3",
+    "·": "*",
+    "—": "-",
+    "–": "-",
+    "©": "(C)",
+}
+
+
+def _create_pdf_styles():
+    styles = getSampleStyleSheet()
+    styles["Normal"].fontName = PDF_FONT
+    if "BodyText" in styles:
+        styles["BodyText"].fontName = PDF_FONT
+    if "Italic" in styles:
+        styles["Italic"].fontName = PDF_FONT_ITALIC
+    return styles
+
+
+def _pdf_safe_text(value) -> str:
+    text = str(value)
+    for source, target in PDF_TEXT_REPLACEMENTS.items():
+        text = text.replace(source, target)
+    return text
+
+
+def _pdf_safe_table(data):
+    return [[_pdf_safe_text(cell) for cell in row] for row in data]
 
 # ============================================================
 # ==================  INTERNAL MODULE IMPORTS  ================
@@ -49,11 +152,8 @@ else:
 
 from core.constants import MATERIALS
 from modules.xray.physics import (
-    photoelectric_rel,
-    compton_rel,
-    rayleigh_rel,
-    normalize_interactions,
     energy_grid,
+    interaction_components,
 )
 from modules.xray.visualizer import (
     plot_interactions,
@@ -65,6 +165,229 @@ from modules.xray.visualizer import (
 # ============================================================
 
 app = Flask(__name__)
+
+
+def _material_label(name: str) -> str:
+    return name.replace("_", " ").capitalize() if name else "Material"
+
+
+def _slugify_label(label: str) -> str:
+    return (label or "material").strip().lower().replace(" ", "_")
+
+
+def _resolve_xray_material(
+    choice: str,
+    z_raw: str = "",
+    rho_raw: str = "",
+    custom_name: str = "",
+    *,
+    fallback_choice: str = "water",
+    fallback_label: str = "Custom Material",
+):
+    choice = (choice or fallback_choice).strip()
+
+    if choice == "custom":
+        if not z_raw:
+            raise ValueError("Please enter a valid atomic number for the custom material.")
+        try:
+            z_val = float(z_raw)
+        except ValueError as exc:
+            raise ValueError("Atomic number must be numeric.") from exc
+        if z_val <= 0 or z_val > 118:
+            raise ValueError("Atomic number must be between 1 and 118.")
+
+        try:
+            rho_val = float(rho_raw) if rho_raw else 1.0
+        except ValueError as exc:
+            raise ValueError("Density must be numeric.") from exc
+        if rho_val <= 0:
+            raise ValueError("Density must be positive.")
+
+        label = (custom_name or fallback_label).strip() or fallback_label
+        return {
+            "choice": "custom",
+            "label": label,
+            "Z": z_val,
+            "rho": rho_val,
+            "E_K": 0.0126 * (z_val ** 2),
+            "E_L": 0.0016 * (z_val ** 2),
+            "is_custom": True,
+        }
+
+    data = MATERIALS.get(choice) or MATERIALS.get(fallback_choice, MATERIALS["water"])
+    resolved_choice = choice if choice in MATERIALS else fallback_choice
+    return {
+        "choice": resolved_choice,
+        "label": _material_label(resolved_choice),
+        "Z": data.get("Z", 7.4),
+        "rho": data.get("rho", 1.0) or 1.0,
+        "E_K": data.get("E_K", 1.0) or 1.0,
+        "E_L": data.get("E_L", 0.1) or 0.1,
+        "is_custom": False,
+    }
+
+
+def _parse_xray_request(form, default_material: str = "bone"):
+    material_choice = (form.get("material", default_material) or default_material).strip()
+    material2_choice = (form.get("material2", "") or "").strip()
+    z1_input = (form.get("z1", "") or "").strip()
+    z2_input = (form.get("z2", "") or "").strip()
+    name1 = (form.get("name1", "") or "").strip()
+    name2 = (form.get("name2", "") or "").strip()
+    rho1_input = (form.get("rho1", "") or "").strip()
+    rho2_input = (form.get("rho2", "") or "").strip()
+
+    try:
+        emin = float(form.get("emin", 20))
+        emax = float(form.get("emax", 120))
+    except ValueError as exc:
+        raise ValueError("Energy inputs must be valid numbers.") from exc
+
+    if emin <= 0 or emax <= emin:
+        raise ValueError("Invalid energy range.")
+
+    material1 = _resolve_xray_material(
+        material_choice,
+        z_raw=z1_input,
+        rho_raw=rho1_input,
+        custom_name=name1,
+        fallback_choice=default_material,
+        fallback_label="Custom Material 1",
+    )
+    material2 = None
+    if material2_choice:
+        material2 = _resolve_xray_material(
+            material2_choice,
+            z_raw=z2_input,
+            rho_raw=rho2_input,
+            custom_name=name2,
+            fallback_choice=default_material,
+            fallback_label="Custom Material 2",
+        )
+
+    return {
+        "material_choice": material_choice,
+        "material2_choice": material2_choice,
+        "material1": material1,
+        "material2": material2,
+        "emin": emin,
+        "emax": emax,
+        "show_photo": "show_photo" in form,
+        "show_compton": "show_compton" in form,
+        "show_rayleigh": "show_rayleigh" in form,
+        "z1_input": z1_input,
+        "z2_input": z2_input,
+        "name1": name1,
+        "name2": name2,
+        "rho1_input": rho1_input,
+        "rho2_input": rho2_input,
+    }
+
+
+def _build_xray_dataframe(
+    E,
+    material1,
+    material2=None,
+    *,
+    show_photo=True,
+    show_compton=True,
+    show_rayleigh=True,
+):
+    rows = {"Energy (keV)": E}
+
+    def add_material_columns(material, prefix=""):
+        components = interaction_components(
+            material["Z"],
+            E,
+            material["E_K"],
+            material["E_L"],
+            material["rho"],
+        )
+        if show_photo:
+            rows[f"{prefix}Photoelectric"] = components["Photoelectric"]
+        if show_compton:
+            rows[f"{prefix}Compton"] = components["Compton"]
+        if show_rayleigh:
+            rows[f"{prefix}Rayleigh"] = components["Rayleigh"]
+
+    if material2:
+        add_material_columns(material1, f"{material1['label']} — ")
+        add_material_columns(material2, f"{material2['label']} — ")
+    else:
+        add_material_columns(material1)
+
+    return pd.DataFrame(rows)
+
+
+def _xray_dominant_component(material, energy_keV: float) -> str:
+    sample_energy = np.array([max(float(energy_keV), 1e-6)])
+    components = interaction_components(
+        material["Z"],
+        sample_energy,
+        material["E_K"],
+        material["E_L"],
+        material["rho"],
+    )
+    return max(components, key=lambda key: float(components[key][0]))
+
+
+def _summarize_xray_selection(material1, emin: float, emax: float, material2=None) -> str:
+    low_dom = _xray_dominant_component(material1, emin)
+    high_dom = _xray_dominant_component(material1, emax)
+    summary = [f"For {material1['label']}, {low_dom.lower()} is the dominant component near {emin:g} keV."]
+    if high_dom == low_dom:
+        summary.append(f"It remains dominant up to {emax:g} keV within the selected range.")
+    else:
+        summary.append(f"By {emax:g} keV, the balance shifts and {high_dom.lower()} becomes dominant.")
+    if material1["rho"] > 1:
+        summary.append("Because the plot uses absolute attenuation proxies, increasing density scales all component magnitudes upward.")
+    if material2:
+        summary.append(
+            f"The comparison uses one shared vertical scale for {material1['label']} and {material2['label']}, preserving absolute differences."
+        )
+    return " ".join(summary)
+
+
+def _make_xray_figure(
+    E,
+    material1,
+    material2=None,
+    *,
+    show_photo=True,
+    show_compton=True,
+    show_rayleigh=True,
+):
+    if material2:
+        title = f"{material1['label']} vs {material2['label']}"
+        fig, ax = compare_materials(
+            material1["Z"],
+            material2["Z"],
+            E,
+            material1["label"],
+            material2["label"],
+            material1["E_K"],
+            material1["E_L"],
+            material1["rho"],
+            material2["E_K"],
+            material2["E_L"],
+            material2["rho"],
+            show_rayleigh=show_rayleigh,
+        )
+        return fig, ax, title
+
+    title = f"{material1['label']} — X-ray Interactions"
+    fig, ax = plot_interactions(
+        material1["Z"],
+        E,
+        title=title,
+        E_K=material1["E_K"],
+        E_L=material1["E_L"],
+        rho=material1["rho"],
+        show_photo=show_photo,
+        show_compton=show_compton,
+        show_rayleigh=show_rayleigh,
+    )
+    return fig, ax, title
 
 # ============================================================
 # ======================  ROUTES: X-RAY  ======================
@@ -85,119 +408,59 @@ def xray():
     """
     materials = list(MATERIALS.keys())
     plot_path = None
-    material = material2 = ""
+    material = "bone"
+    material2 = ""
+    material_label1 = _material_label(material)
+    material_label2 = ""
     emin, emax = 20, 120
     show_photo, show_compton, show_rayleigh = True, True, True
     selected_Z = None
-    scale = "logarithmic"
-    z1_input = z2_input = name1 = name2 = ""
+    selected_Z2 = None
+    scale = "logarithmic y-axis"
+    z1_input = z2_input = name1 = name2 = rho1_input = rho2_input = ""
+    rho1 = rho2 = None
 
     if request.method == "POST":
-        material = request.form.get("material", "bone")
-        material2 = request.form.get("material2", "")
-
         try:
-            emin = float(request.form.get("emin", 20))
-            emax = float(request.form.get("emax", 120))
-        except ValueError:
-            return jsonify({"error": "Energy inputs must be valid numbers."}), 400
+            parsed = _parse_xray_request(request.form, default_material="bone")
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
 
-        if emin <= 0 or emax <= emin:
-            return jsonify({"error": "Invalid energy range."}), 400
+        material = parsed["material_choice"]
+        material2 = parsed["material2_choice"]
+        material1 = parsed["material1"]
+        material2_data = parsed["material2"]
+        emin = parsed["emin"]
+        emax = parsed["emax"]
+        show_photo = parsed["show_photo"]
+        show_compton = parsed["show_compton"]
+        show_rayleigh = parsed["show_rayleigh"]
+        z1_input = parsed["z1_input"]
+        z2_input = parsed["z2_input"]
+        name1 = parsed["name1"]
+        name2 = parsed["name2"]
+        rho1_input = parsed["rho1_input"]
+        rho2_input = parsed["rho2_input"]
 
-        show_photo = "show_photo" in request.form
-        show_compton = "show_compton" in request.form
-        show_rayleigh = "show_rayleigh" in request.form
+        material_label1 = material1["label"]
+        material_label2 = material2_data["label"] if material2_data else ""
+        selected_Z = material1["Z"]
+        selected_Z2 = material2_data["Z"] if material2_data else None
+        rho1 = material1["rho"]
+        rho2 = material2_data["rho"] if material2_data else None
 
-        z1_input = request.form.get("z1", "").strip()
-        z2_input = request.form.get("z2", "").strip()
-        name1 = request.form.get("name1", "").strip()
-        name2 = request.form.get("name2", "").strip()
-
-        try:
-            if material == "custom" and z1_input:
-                Z1 = float(z1_input)
-            else:
-                Z1 = MATERIALS.get(material, {}).get("Z", 7.4)
-            if Z1 <= 0:
-                raise ValueError("Z1 must be positive.")
-        except ValueError:
-            return jsonify({"error": "Atomic Number (Z₁) must be valid."}), 400
-
-        E_K1 = MATERIALS.get(material, {}).get("E_K", 1.0)
-        E_L1 = MATERIALS.get(material, {}).get("E_L", 0.1)
-        rho1 = MATERIALS.get(material, {}).get("rho", 1.0)
-        # Normalize None → defaults
-        E_K1 = E_K1 or 1.0
-        E_L1 = E_L1 or 0.1
-        rho1 = rho1 or 1.0
-
-        rho1_input = request.form.get("rho1", "").strip()
-        if material == "custom":
-            E_K1 = 0.0126 * (Z1 ** 2)
-            E_L1 = 0.0016 * (Z1 ** 2)
-            try:
-                rho1 = float(rho1_input) if rho1_input else 1.0
-            except ValueError:
-                return jsonify({"error": "Density (ρ₁) must be valid."}), 400
-
-        Z2 = E_K2 = E_L2 = rho2 = None
-        rho2_input = request.form.get("rho2", "").strip()
-        if material2:
-            try:
-                if material2 == "custom" and z2_input:
-                    Z2 = float(z2_input)
-                else:
-                    Z2 = MATERIALS.get(material2, {}).get("Z", 7.4)
-                if Z2 <= 0:
-                    raise ValueError("Z2 must be positive.")
-            except ValueError:
-                return jsonify({"error": "Atomic Number (Z₂) must be valid."}), 400
-
-            E_K2 = MATERIALS.get(material2, {}).get("E_K", 1.0)
-            E_L2 = MATERIALS.get(material2, {}).get("E_L", 0.1)
-            rho2 = MATERIALS.get(material2, {}).get("rho", 1.0)
-            # Normalize None → defaults
-            E_K2 = E_K2 or 1.0
-            E_L2 = E_L2 or 0.1
-            rho2 = rho2 or 1.0
-
-            if material2 == "custom":
-                E_K2 = 0.0126 * (Z2 ** 2)
-                E_L2 = 0.0016 * (Z2 ** 2)
-                try:
-                    rho2 = float(rho2_input) if rho2_input else 1.0
-                except ValueError:
-                    return jsonify({"error": "Density (ρ₂) must be valid."}), 400
-
-        if material == "custom":
-            material = name1 or "Custom Material 1"
-        if material2 == "custom":
-            material2 = name2 or "Custom Material 2"
-
-        selected_Z = Z1
         E = energy_grid(emin, emax)
-
-        if material2:
-            title = f"{material.capitalize()} vs {material2.capitalize()}"
-            fig, ax = compare_materials(
-                Z1, Z2, E, material, material2,
-                E_K1, E_L1, rho1,
-                E_K2, E_L2, rho2,
-                show_rayleigh=show_rayleigh
-            )
-        else:
-            title = f"{material.capitalize()} — X-ray Interactions"
-            fig, ax = plot_interactions(
-                Z1, E, title=title,
-                E_K=E_K1, E_L=E_L1, rho=rho1,
-                show_photo=show_photo,
-                show_compton=show_compton,
-                show_rayleigh=show_rayleigh
-            )
+        fig, ax, title = _make_xray_figure(
+            E,
+            material1,
+            material2_data,
+            show_photo=show_photo,
+            show_compton=show_compton,
+            show_rayleigh=show_rayleigh,
+        )
 
         os.makedirs("static/plots", exist_ok=True)
-        plot_path = f"static/plots/{material}_{int(time.time())}.png"
+        plot_path = f"static/plots/xray_{int(time.time() * 1000)}.png"
         fig.savefig(plot_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
 
@@ -205,9 +468,10 @@ def xray():
             return render_template(
                 "_xray_result.html",
                 plot_path=plot_path,
-                selected_material=material,
-                selected_material2=material2,
+                material_label1=material_label1,
+                material_label2=material_label2,
                 selected_Z=selected_Z,
+                selected_Z2=selected_Z2,
                 z1=z1_input,
                 z2=z2_input,
                 name1=name1,
@@ -216,8 +480,8 @@ def xray():
                 emax=emax,
                 show_rayleigh=show_rayleigh,
                 scale=scale,
-                rho1=rho1_input,
-                rho2=rho2_input
+                rho1=rho1,
+                rho2=rho2,
             )
 
     return render_template(
@@ -226,7 +490,10 @@ def xray():
         plot_path=plot_path,
         selected_material=material,
         selected_material2=material2,
+        material_label1=material_label1,
+        material_label2=material_label2,
         selected_Z=selected_Z,
+        selected_Z2=selected_Z2,
         emin=emin,
         emax=emax,
         show_photo=show_photo,
@@ -237,8 +504,8 @@ def xray():
         name1=name1,
         name2=name2,
         scale=scale,
-        rho1=None,
-        rho2=None
+        rho1=rho1_input,
+        rho2=rho2_input,
     )
 # ============================================================
 # ================  X-RAY REPORT (PDF GENERATOR)  =============
@@ -251,60 +518,38 @@ def xray_report():
     Includes parameters, plot, interaction data, and a brief analysis.
     """
     try:
-        material = request.form.get("material", "water")
-        material2 = request.form.get("material2", "")
-        emin = float(request.form.get("emin", 20))
-        emax = float(request.form.get("emax", 120))
-        show_photo = "show_photo" in request.form
-        show_compton = "show_compton" in request.form
-        show_rayleigh = "show_rayleigh" in request.form
-
-        from core.constants import MATERIALS
-        from modules.xray.physics import photoelectric_rel, compton_rel, rayleigh_rel, energy_grid
-
-        mat_data = MATERIALS.get(material, MATERIALS["water"])
-        Z1 = mat_data.get("Z", 7.4)
-        rho1 = mat_data.get("rho", 1.0)
-        E_K1 = mat_data.get("E_K", 1.0)
-        E_L1 = mat_data.get("E_L", 0.1)
-        E_K1 = E_K1 or 1.0
-        E_L1 = E_L1 or 0.1
-        rho1 = rho1 or 1.0
-
-        mat_data2 = MATERIALS.get(material2, None) if material2 else None
-        Z2 = mat_data2.get("Z") if mat_data2 else None
-        rho2 = mat_data2.get("rho") if mat_data2 else None
+        parsed = _parse_xray_request(request.form, default_material="bone")
+        material1 = parsed["material1"]
+        material2 = parsed["material2"]
+        emin = parsed["emin"]
+        emax = parsed["emax"]
+        show_photo = parsed["show_photo"]
+        show_compton = parsed["show_compton"]
+        show_rayleigh = parsed["show_rayleigh"]
 
         E = energy_grid(emin, emax)
-        data = {"Energy (keV)": E}
-        if show_photo:
-            data["Photoelectric"] = photoelectric_rel(Z1, E, E_K1, E_L1, rho1)
-        if show_compton:
-            data["Compton"] = compton_rel(Z1, E, rho1)
-        if show_rayleigh:
-            data["Rayleigh"] = rayleigh_rel(Z1, E, rho1)
-        df = pd.DataFrame(data)
+        df = _build_xray_dataframe(
+            E,
+            material1,
+            material2,
+            show_photo=show_photo,
+            show_compton=show_compton,
+            show_rayleigh=show_rayleigh,
+        )
+        summary_text = _summarize_xray_selection(material1, emin, emax, material2)
 
-        summary = []
-        if Z1 > 50:
-            summary.append("High-Z material — strong Photoelectric effect at low energies.")
-        elif Z1 < 15:
-            summary.append("Low-Z material — Compton scattering dominates.")
-        if emax > 100:
-            summary.append("Compton scattering increases at higher energies.")
-        if rho1 > 10:
-            summary.append("High density increases total attenuation.")
-        if material2:
-            summary.append(f"Comparison between {material.capitalize()} and {material2.capitalize()} shown.")
-        summary_text = " ".join(summary) or "Standard interaction behavior observed."
-
-        plot_folder = "static/plots"
-        plot_file = None
-        if os.path.exists(plot_folder):
-            for f in os.listdir(plot_folder):
-                if material.lower() in f.lower() and f.endswith(".png"):
-                    plot_file = os.path.join(plot_folder, f)
-                    break
+        fig, ax, title = _make_xray_figure(
+            E,
+            material1,
+            material2,
+            show_photo=show_photo,
+            show_compton=show_compton,
+            show_rayleigh=show_rayleigh,
+        )
+        plot_buffer = io.BytesIO()
+        fig.savefig(plot_buffer, format="png", dpi=150, bbox_inches="tight")
+        plot_buffer.seek(0)
+        plt.close(fig)
 
         pdf_buffer = io.BytesIO()
         doc = SimpleDocTemplate(pdf_buffer, pagesize=A4)
@@ -316,28 +561,27 @@ def xray_report():
             story[-1].hAlign = 'CENTER'
             story.append(Spacer(1, 0.2 * inch))
 
-        styles = getSampleStyleSheet()
-        styles.add(ParagraphStyle(name="Heading", fontName="DejaVuSans", fontSize=16,
+        styles = _create_pdf_styles()
+        styles.add(ParagraphStyle(name="Heading", fontName=PDF_FONT_BOLD, fontSize=16,
                                   leading=22, textColor=colors.darkblue, spaceAfter=12))
-        styles.add(ParagraphStyle(name="NormalBold", fontName="DejaVuSans", fontSize=11,
+        styles.add(ParagraphStyle(name="NormalBold", fontName=PDF_FONT_BOLD, fontSize=11,
                                   leading=14, textColor=colors.black, spaceAfter=6))
-        styles.add(ParagraphStyle(name="Warning", fontName="DejaVuSans", fontSize=9,
+        styles.add(ParagraphStyle(name="Warning", fontName=PDF_FONT_BOLD, fontSize=9,
                                   leading=13, textColor=colors.red, spaceAfter=8))
 
-        story.append(Paragraph("X-ray Interaction Analysis Report", styles["Heading"]))
-        story.append(Paragraph(f"Generated on: {datetime.datetime.now():%Y-%m-%d %H:%M:%S}", styles["Normal"]))
+        story.append(Paragraph(_pdf_safe_text("X-ray Interaction Analysis Report"), styles["Heading"]))
+        story.append(Paragraph(_pdf_safe_text(f"Generated on: {datetime.datetime.now():%Y-%m-%d %H:%M:%S}"), styles["Normal"]))
         story.append(Spacer(1, 0.2 * inch))
 
         table_data = [["Parameter", "Value"],
-                      ["Primary Material", material.capitalize()],
-                      ["Atomic Number (Z₁)", f"{Z1:.2f}"],
-                      ["Density (ρ₁, g/cm³)", f"{rho1:.3f}"]]
+                      ["Primary Material", material1["label"]],
+                      ["Atomic Number (Z₁)", f"{material1['Z']:.2f}"],
+                      ["Density (ρ₁, g/cm³)", f"{material1['rho']:.3f}"]]
 
         if material2:
-            table_data += [["Comparison Material", material2.capitalize()]]
-            if Z2:
-                table_data += [["Atomic Number (Z₂)", f"{Z2:.2f}"],
-                               ["Density (ρ₂, g/cm³)", f"{rho2:.3f}"]]
+            table_data += [["Comparison Material", material2["label"]]]
+            table_data += [["Atomic Number (Z₂)", f"{material2['Z']:.2f}"],
+                           ["Density (ρ₂, g/cm³)", f"{material2['rho']:.3f}"]]
 
         table_data += [["Energy Range (keV)", f"{emin} – {emax}"],
                        ["Included Interactions",
@@ -345,9 +589,9 @@ def xray_report():
                                                   ("Compton", show_compton),
                                                   ("Rayleigh", show_rayleigh)] if s])]]
 
-        table = Table(table_data, colWidths=[2.5 * inch, 3.5 * inch])
+        table = Table(_pdf_safe_table(table_data), colWidths=[2.5 * inch, 3.5 * inch])
         table.setStyle(TableStyle([
-            ("FONTNAME", (0, 0), (-1, -1), "DejaVuSans"),
+            ("FONTNAME", (0, 0), (-1, -1), PDF_FONT),
             ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
             ("ALIGN", (0, 0), (-1, -1), "CENTER"),
             ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
@@ -356,20 +600,19 @@ def xray_report():
         story.append(table)
         story.append(Spacer(1, 0.3 * inch))
 
-        if plot_file and os.path.exists(plot_file):
-            story.append(Paragraph("Figure 1. Interaction Cross-Sections", styles["NormalBold"]))
-            story.append(Image(plot_file, width=5.5 * inch, height=3.5 * inch))
-            story.append(Spacer(1, 0.2 * inch))
+        story.append(Paragraph(_pdf_safe_text("Figure 1. Interaction Components"), styles["NormalBold"]))
+        story.append(Image(plot_buffer, width=5.5 * inch, height=3.5 * inch))
+        story.append(Spacer(1, 0.2 * inch))
 
         story.append(PageBreak())
-        story.append(Paragraph("Scientific Analysis", styles["Heading"]))
-        story.append(Paragraph(summary_text, styles["Normal"]))
+        story.append(Paragraph(_pdf_safe_text("Scientific Analysis"), styles["Heading"]))
+        story.append(Paragraph(_pdf_safe_text(summary_text), styles["Normal"]))
         story.append(Spacer(1, 0.3 * inch))
 
-        story.append(Paragraph("Sample Data (First 5 rows)", styles["NormalBold"]))
-        formatted_data = [df.columns.tolist()]
+        story.append(Paragraph(_pdf_safe_text("Sample Data (First 5 rows)"), styles["NormalBold"]))
+        formatted_data = [[_pdf_safe_text(col) for col in df.columns.tolist()]]
         for row in df.head(5).itertuples(index=False):
-            formatted_data.append([f"{v:.3g}" if isinstance(v, (int, float)) else str(v) for v in row])
+            formatted_data.append([_pdf_safe_text(f"{v:.3g}" if isinstance(v, (int, float)) else str(v)) for v in row])
         t = Table(formatted_data, colWidths=[1.6 * inch] + [1.1 * inch] * (len(df.columns) - 1))
         t.setStyle(TableStyle([
             ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
@@ -379,32 +622,38 @@ def xray_report():
         story.append(t)
         story.append(Spacer(1, 0.3 * inch))
 
-        story.append(Paragraph("WARNING", styles["Heading"]))
+        story.append(Paragraph(_pdf_safe_text("WARNING"), styles["Heading"]))
         story.append(Paragraph(
-            "This simulation is for educational and research purposes only. "
-            "Not intended for clinical or diagnostic use.",
+            _pdf_safe_text(
+                "This simulation is for educational and research purposes only. "
+                "Not intended for clinical or diagnostic use."
+            ),
             styles["Warning"]
         ))
 
-        story.append(Paragraph("References", styles["Heading"]))
+        story.append(Paragraph(_pdf_safe_text("References"), styles["Heading"]))
         story.append(Paragraph(
-            "1. Hubbell & Seltzer, NIST (1995). X-ray mass attenuation coefficients.<br/>"
-            "2. Attix, F.H. (1986). Introduction to Radiological Physics.<br/>"
-            "3. Johns & Cunningham (1983). The Physics of Radiology.",
+            _pdf_safe_text(
+                "1. Hubbell & Seltzer, NIST (1995). X-ray mass attenuation coefficients.<br/>"
+                "2. Attix, F.H. (1986). Introduction to Radiological Physics.<br/>"
+                "3. Johns & Cunningham (1983). The Physics of Radiology."
+            ),
             styles["Normal"]
         ))
 
         # --- Unified Disclaimer & Footer ---
         story.append(Spacer(1, 0.3 * inch))
-        story.append(Paragraph("DISCLAIMER", styles["Heading"]))
+        story.append(Paragraph(_pdf_safe_text("DISCLAIMER"), styles["Heading"]))
         story.append(Paragraph(
-            "This report is generated for educational and research purposes only. "
-            "It must not be used for clinical or diagnostic decision-making.",
+            _pdf_safe_text(
+                "This report is generated for educational and research purposes only. "
+                "It must not be used for clinical or diagnostic decision-making."
+            ),
             styles["Warning"]
         ))
         story.append(Spacer(1, 0.3 * inch))
         story.append(Paragraph(
-            "Generated by: Medical Radiation Visualizer © 2025 — Hassan Almoosa",
+            _pdf_safe_text("Generated by: Medical Radiation Visualizer © 2025 — Hassan Almoosa"),
             styles["Normal"]
         ))
 
@@ -414,7 +663,7 @@ def xray_report():
         return send_file(
             pdf_buffer,
             as_attachment=True,
-            download_name=f"{material}_xray_report.pdf",
+            download_name=f"{_slugify_label(material1['label'])}_xray_report.pdf",
             mimetype="application/pdf"
         )
     except Exception as e:
@@ -429,30 +678,18 @@ def xray_report():
 def download_xray_data():
     """Export calculated X-ray interaction data to Excel."""
     try:
-        material = request.form.get("material", "water")
-        material2 = request.form.get("material2", "")
-        emin = float(request.form.get("emin", 20))
-        emax = float(request.form.get("emax", 120))
-
-        from modules.xray.physics import photoelectric_rel, compton_rel, rayleigh_rel, energy_grid
-        from core.constants import MATERIALS
-
-        Z1 = MATERIALS.get(material, {}).get("Z", 7.4)
-        rho1 = MATERIALS.get(material, {}).get("rho", 1.0)
-        E_K1 = MATERIALS.get(material, {}).get("E_K", 1.0)
-        E_L1 = MATERIALS.get(material, {}).get("E_L", 0.1)
-        # Normalize None → defaults
-        E_K1 = E_K1 or 1.0
-        E_L1 = E_L1 or 0.1
-        rho1 = rho1 or 1.0
-
-        E = energy_grid(emin, emax)
-        df = pd.DataFrame({
-            "Energy (keV)": E,
-            "Photoelectric": photoelectric_rel(Z1, E, E_K1, E_L1, rho1),
-            "Compton": compton_rel(Z1, E, rho1),
-            "Rayleigh": rayleigh_rel(Z1, E, rho1)
-        })
+        parsed = _parse_xray_request(request.form, default_material="bone")
+        material1 = parsed["material1"]
+        material2 = parsed["material2"]
+        E = energy_grid(parsed["emin"], parsed["emax"])
+        df = _build_xray_dataframe(
+            E,
+            material1,
+            material2,
+            show_photo=parsed["show_photo"],
+            show_compton=parsed["show_compton"],
+            show_rayleigh=parsed["show_rayleigh"],
+        )
 
         output = io.BytesIO()
         df.to_excel(output, index=False)
@@ -461,7 +698,7 @@ def download_xray_data():
         return send_file(
             output,
             as_attachment=True,
-            download_name=f"{material}_xray_data.xlsx",
+            download_name=f"{_slugify_label(material1['label'])}_xray_data.xlsx",
             mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
     except Exception as e:
@@ -470,6 +707,56 @@ def download_xray_data():
 # ============================================================
 # ====================  ROUTES: GAMMA-RAY  ===================
 # ============================================================
+
+def _gamma_dominant_component(data: dict, energy_mev: float) -> str:
+    sample_energy = max(float(energy_mev), 1e-6)
+    idx = int(np.argmin(np.abs(data["E_mev"] - sample_energy)))
+    components = {
+        "Photoelectric": float(data["photo_mu"][idx]),
+        "Compton": float(data["compton_mu"][idx]),
+        "Pair": float(data["pair_mu"][idx]),
+    }
+    return max(components, key=components.get)
+
+
+def _summarize_gamma_selection(
+    data1: dict,
+    emin: float,
+    emax: float,
+    *,
+    label1: str,
+    label2: str | None = None,
+) -> str:
+    low_dom = _gamma_dominant_component(data1, emin)
+    high_dom = _gamma_dominant_component(data1, emax)
+    total_mu = np.asarray(data1["total_mu"], dtype=float)
+    total_end = float(total_mu[-1])
+    total_mid = float(total_mu[len(total_mu) // 2])
+
+    summary = [f"For {label1}, {low_dom.lower()} is the dominant contribution near {emin:g} MeV."]
+    if high_dom == low_dom:
+        summary.append(f"It remains the largest component near {emax:g} MeV.")
+    else:
+        summary.append(f"Near {emax:g} MeV, the balance shifts toward {high_dom.lower()}.")
+
+    if emax < 1.022:
+        summary.append("Pair production stays below threshold throughout the selected range.")
+    elif emin < 1.022:
+        summary.append("Pair production turns on above 1.022 MeV and grows toward the high-energy end.")
+    else:
+        summary.append("Pair production is available across the full selected range and grows with energy, especially for high-Z materials.")
+
+    if emax >= 1.022 and total_end > 1.05 * total_mid:
+        summary.append("At the highest energies, pair production offsets part of the Compton falloff, so total attenuation bends upward.")
+    elif emax >= 1.022 and total_end > 0.9 * total_mid:
+        summary.append("At the highest energies, pair production partly compensates for the Compton decline, so total attenuation flattens.")
+    else:
+        summary.append("Across the selected range, the total attenuation still trends downward with energy.")
+
+    if label2:
+        summary.append(f"The comparison uses one shared attenuation scale for {label1} and {label2}.")
+    return " ".join(summary)
+
 
 @app.route("/gamma", methods=["GET", "POST"])
 def gamma():
@@ -484,7 +771,8 @@ def gamma():
 
     materials = list(MATERIALS.keys())
     plot_path = None
-    material, material2 = "", ""
+    material, material2 = "lead", ""
+    material_label1, material_label2 = _material_label(material), ""
     emin, emax = 0.1, 10
     z_input, z_input2 = "", ""
     name1, name2 = "", ""
@@ -531,25 +819,32 @@ def gamma():
                 return mat.get("Z", 7.4), (material_name.capitalize() if material_name else "Material")
 
         try:
-            Z1, material = get_Z(material, z_input, name1)
+            Z1, material_label1 = get_Z(material, z_input, name1)
             if material2:
-                Z2, material2 = get_Z(material2, z_input2, name2)
+                Z2, material_label2 = get_Z(material2, z_input2, name2)
+            else:
+                material_label2 = ""
         except ValueError as e:
             return jsonify({"error": f"{str(e)}"}), 400
 
         E = energy_grid(emin, emax, points=300, scale=scale)
-        title = f"{material} — Gamma-ray Interactions" if not material2 else f"{material} vs {material2} — Gamma-ray Interactions"
+        title = (
+            f"{material_label1} — Gamma-ray Interactions"
+            if not material2
+            else f"{material_label1} vs {material_label2} — Gamma-ray Interactions"
+        )
 
         fig, ax = plot_gamma(
             Z1, E, title,
             rho1=rho1,
             Z2=Z2, rho2=(rho2 if material2 else None),
-            material1=material, material2=(material2 if material2 else None),
-            show_mass_coeff=False
+            material1=material_label1, material2=(material_label2 if material2 else None),
+            show_mass_coeff=False,
+            scale=scale,
         )
 
         os.makedirs("static/plots", exist_ok=True)
-        plot_path = f"static/plots/{material}_gamma_{int(time.time())}.png"
+        plot_path = f"static/plots/gamma_{int(time.time() * 1000)}.png"
         fig.savefig(plot_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
 
@@ -557,8 +852,8 @@ def gamma():
             return render_template(
                 "_gammaray_result.html",
                 plot_path=plot_path,
-                selected_material=material,
-                selected_material2=material2,
+                material_label1=material_label1,
+                material_label2=material_label2,
                 selected_Z=Z1,
                 selected_Z2=Z2,
                 emin=emin,
@@ -576,6 +871,8 @@ def gamma():
         plot_path=plot_path,
         selected_material=material,
         selected_material2=(material2 if "material2" in locals() else None),
+        material_label1=material_label1,
+        material_label2=material_label2,
         z1=z_input,
         z2=(z_input2 if "z_input2" in locals() else None),
         emin=emin,
@@ -716,7 +1013,8 @@ def gamma_report():
             Z1, E, title, rho1=rho1,
             Z2=Z2, rho2=(rho2 if Z2 is not None else None),
             material1=label1, material2=(label2 if Z2 is not None else None),
-            show_mass_coeff=False
+            show_mass_coeff=False,
+            scale=scale,
         )
 
         os.makedirs("static/plots", exist_ok=True)
@@ -726,18 +1024,18 @@ def gamma_report():
 
         pdf_buffer = io.BytesIO()
         doc = SimpleDocTemplate(pdf_buffer, pagesize=A4)
-        styles = getSampleStyleSheet()
+        styles = _create_pdf_styles()
         # Ensure consistent styles across all modules
         if "Heading" not in styles:
-            styles.add(ParagraphStyle(name="Heading", fontName="DejaVuSans", fontSize=16,
+            styles.add(ParagraphStyle(name="Heading", fontName=PDF_FONT_BOLD, fontSize=16,
                                     leading=22, textColor=colors.darkblue, spaceAfter=12))
         if "Warning" not in styles:
-            styles.add(ParagraphStyle(name="Warning", fontName="DejaVuSans", fontSize=9,
+            styles.add(ParagraphStyle(name="Warning", fontName=PDF_FONT_BOLD, fontSize=9,
                                     leading=13, textColor=colors.red, spaceAfter=8))
 
-        styles.add(ParagraphStyle(name="H", fontName="DejaVuSans", fontSize=16, leading=22,
+        styles.add(ParagraphStyle(name="H", fontName=PDF_FONT_BOLD, fontSize=16, leading=22,
                                   textColor=colors.darkblue, spaceAfter=12))
-        styles.add(ParagraphStyle(name="Warn", fontName="DejaVuSans", fontSize=9, leading=13,
+        styles.add(ParagraphStyle(name="Warn", fontName=PDF_FONT_BOLD, fontSize=9, leading=13,
                                   textColor=colors.red, spaceAfter=8))
 
         story = []
@@ -747,8 +1045,8 @@ def gamma_report():
             story.append(Image(logo_path, width=70, height=70))
             story[-1].hAlign = 'CENTER'
             story.append(Spacer(1, 0.2 * inch))
-        story.append(Paragraph("Gamma-ray Interaction Analysis Report", styles["H"]))
-        story.append(Paragraph(f"Generated: {datetime.datetime.now():%Y-%m-%d %H:%M:%S}", styles["Normal"]))
+        story.append(Paragraph(_pdf_safe_text("Gamma-ray Interaction Analysis Report"), styles["H"]))
+        story.append(Paragraph(_pdf_safe_text(f"Generated: {datetime.datetime.now():%Y-%m-%d %H:%M:%S}"), styles["Normal"]))
         story.append(Spacer(1, 0.2 * inch))
 
         rows = [
@@ -764,9 +1062,9 @@ def gamma_report():
                 ["Atomic Number (Z₂)", f"{Z2:.2f}"],
                 ["Density (ρ₂, g/cm³)", f"{rho2:.3f}"],
             ]
-        tbl = Table(rows, colWidths=[2.7*inch, 3.3*inch])
+        tbl = Table(_pdf_safe_table(rows), colWidths=[2.7*inch, 3.3*inch])
         tbl.setStyle(TableStyle([
-            ("FONTNAME", (0,0), (-1,-1), "DejaVuSans"),
+            ("FONTNAME", (0,0), (-1,-1), PDF_FONT),
             ("BACKGROUND", (0,0), (-1,0), colors.lightgrey),
             ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
             ("ALIGN", (0,0), (-1,-1), "CENTER"),
@@ -778,26 +1076,30 @@ def gamma_report():
             story.append(Image(plot_path, width=5.6*inch, height=3.4*inch))
             story.append(Spacer(1, 0.2 * inch))
 
-        interp = []
-        if emax >= 1.022:
-            interp.append("Pair production is above threshold and increases with energy and atomic number.")
-        else:
-            interp.append("Pair production remains below threshold in the selected energy range.")
-        interp.append("Compton scattering dominates in the MeV range; total attenuation decreases slowly with energy.")
-        story.append(Paragraph(" ".join(interp), styles["Normal"]))
+        data1 = gamma_interactions(Z1, rho1, E)
+        summary = _summarize_gamma_selection(
+            data1,
+            emin,
+            emax,
+            label1=label1,
+            label2=label2,
+        )
+        story.append(Paragraph(_pdf_safe_text(summary), styles["Normal"]))
         story.append(Spacer(1, 0.25 * inch))
 
         # --- Unified Disclaimer & Footer ---
         story.append(Spacer(1, 0.3 * inch))
-        story.append(Paragraph("DISCLAIMER", styles["Heading"]))
+        story.append(Paragraph(_pdf_safe_text("DISCLAIMER"), styles["Heading"]))
         story.append(Paragraph(
-            "This report is generated for educational and research purposes only. "
-            "It must not be used for clinical or diagnostic decision-making.",
+            _pdf_safe_text(
+                "This report is generated for educational and research purposes only. "
+                "It must not be used for clinical or diagnostic decision-making."
+            ),
             styles["Warning"]
         ))
         story.append(Spacer(1, 0.3 * inch))
         story.append(Paragraph(
-            "Generated by: Medical Radiation Visualizer © 2025 — Hassan Almoosa",
+            _pdf_safe_text("Generated by: Medical Radiation Visualizer © 2025 — Hassan Almoosa"),
             styles["Normal"]
         ))
 
@@ -820,8 +1122,116 @@ def gamma_report():
 
 from modules.protons.visualizer import plot_proton_interaction
 from modules.protons.physics import (
-    bragg_curve, stopping_power_curve, range_vs_energy, lateral_sigma_curve
+    bragg_curve, stopping_power_curve, range_vs_energy, lateral_sigma_curve, resolve_material_spec
 )
+
+PROTON_MODE_LABELS = {
+    "bragg": "Bragg Peak",
+    "stopping": "Stopping Power",
+    "range": "Range-Energy",
+    "lateral": "Lateral Scattering",
+}
+
+
+def _resolve_proton_material_from_params(params: dict):
+    choice = (params.get("material", "water") or "water").strip()
+    if choice == "custom":
+        name = (params.get("name", "") or "").strip() or "Custom Material"
+        z_raw = (params.get("z", "") or "").strip()
+        rho_raw = (params.get("rho", "") or "").strip()
+        if not z_raw:
+            raise ValueError("Please enter an atomic number for the custom proton material.")
+        if not rho_raw:
+            raise ValueError("Please enter a density for the custom proton material.")
+        try:
+            z_val = float(z_raw)
+            rho_val = float(rho_raw)
+        except ValueError as exc:
+            raise ValueError("Custom proton material values must be numeric.") from exc
+        if z_val <= 0 or z_val > 118:
+            raise ValueError("Atomic number must be between 1 and 118.")
+        if rho_val <= 0:
+            raise ValueError("Density must be positive.")
+        return choice, resolve_material_spec({"name": name, "label": name, "Z": z_val, "rho": rho_val})
+
+    if choice not in MATERIALS:
+        choice = "water"
+    return choice, resolve_material_spec(choice)
+
+
+def _parse_proton_request(form) -> dict:
+    params = form.to_dict() or {}
+    params["mode"] = (params.get("mode", "bragg") or "bragg").strip().lower()
+
+    numeric_defaults = {
+        "E0": 150.0,
+        "dx": 0.01,
+        "emin": 10.0,
+        "emax": 250.0,
+        "npts": 120,
+        "zmax": 25.0,
+    }
+
+    for key, default in numeric_defaults.items():
+        raw = params.get(key, default)
+        if raw in (None, ""):
+            params[key] = default
+            continue
+        try:
+            params[key] = float(raw)
+        except ValueError as exc:
+            raise ValueError(f"{key} must be numeric.") from exc
+
+    params["npts"] = int(round(params["npts"]))
+    if params["E0"] <= 0:
+        raise ValueError("Initial proton energy must be positive.")
+    if params["dx"] <= 0:
+        raise ValueError("Step size must be positive.")
+    if params["emin"] <= 0 or params["emax"] <= params["emin"]:
+        raise ValueError("Energy range must satisfy 0 < emin < emax.")
+    if params["npts"] < 20 or params["npts"] > 1000:
+        raise ValueError("npts must be between 20 and 1000.")
+    if params["zmax"] <= 0:
+        raise ValueError("Maximum depth must be positive.")
+
+    material_choice, material_spec = _resolve_proton_material_from_params(params)
+    params["material"] = material_choice
+    params["material_spec"] = material_spec
+    params["material_label"] = material_spec["label"]
+    return params
+
+
+def _build_proton_dataframe(params: dict) -> pd.DataFrame:
+    mode = params["mode"]
+    material = params["material_spec"]
+    if mode == "bragg":
+        x, y, _ = bragg_curve(params["E0"], material, dx_cm=params["dx"])
+        return pd.DataFrame({"Depth (cm)": x, "Relative Dose": y})
+    if mode == "stopping":
+        energies = np.linspace(params["emin"], params["emax"], params["npts"])
+        x, y = stopping_power_curve(energies, material)
+        return pd.DataFrame({"Energy (MeV)": x, "Mass Stopping Power (MeV·cm²/g)": y})
+    if mode == "range":
+        energies = np.linspace(params["emin"], params["emax"], params["npts"])
+        x, y = range_vs_energy(energies, material)
+        return pd.DataFrame({"Initial Energy (MeV)": x, "CSDA Range (cm)": y})
+    if mode == "lateral":
+        depths = np.linspace(0, params["zmax"], params["npts"])
+        x, y = lateral_sigma_curve(depths, params["E0"], material)
+        return pd.DataFrame({"Depth (cm)": x, "Lateral Spread σ (cm)": y})
+    raise ValueError("Unknown mode selected")
+
+
+def _proton_interpretation(mode: str) -> str:
+    if mode == "bragg":
+        return "The Bragg curve is derived from the same stopping-power model used in the range calculation, so the peak position and terminal range are internally consistent."
+    if mode == "stopping":
+        return "The stopping-power curve and Bragg simulation now share one Bethe-inspired material model, so high stopping power at low energy feeds directly into the distal peak."
+    if mode == "range":
+        return "The CSDA range is obtained by integrating the same stopping-power model shown elsewhere, so it increases monotonically and nonlinearly with initial energy rather than relying on a separate empirical rescaling."
+    if mode == "lateral":
+        return "Lateral spread is estimated with Highland scattering using the same resolved material density and effective radiation length used throughout the proton module."
+    return "Results are generated from one consistent proton-material model."
 
 @app.route("/proton")
 def proton_page():
@@ -836,32 +1246,19 @@ def plot_proton():
     and return a partial HTML snippet to display the figure.
     """
     try:
-        params = request.form.to_dict() or {}
-        mode = params.get("mode", "bragg")
-
-        material = params.get("material", "water")
-        if material not in MATERIALS:
-            material = "water"
-        params["material"] = material
-
-        for key in ["E0", "dx", "emin", "emax", "npts", "zmax"]:
-            if key in params:
-                try:
-                    params[key] = float(params[key])
-                except ValueError:
-                    pass
-
-        fig, ax = plot_proton_interaction(mode, params)
-        plot_path = "static/plots/proton_plot.png"
+        params = _parse_proton_request(request.form)
+        fig, ax = plot_proton_interaction(params["mode"], params)
+        os.makedirs("static/plots", exist_ok=True)
+        plot_path = f"static/plots/proton_{int(time.time() * 1000)}.png"
         fig.savefig(plot_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
 
         return render_template(
             "_proton_result.html",
             plot_path=plot_path,
-            material=material,
-            E0=params.get("E0", 150),
-            mode=mode
+            material_label=params["material_label"],
+            E0=params["E0"],
+            mode_label=PROTON_MODE_LABELS.get(params["mode"], "Interaction"),
         )
     except Exception as e:
         import traceback
@@ -872,43 +1269,37 @@ def plot_proton():
 @app.route("/proton/download", methods=["POST"])
 def download_proton():
     """Export Proton data as an Excel file."""
-    params = request.form.to_dict() or {}
-    mode = params.get("mode", "bragg")
-    material = params.get("material", "water")
+    try:
+        params = _parse_proton_request(request.form)
+        data = _build_proton_dataframe(params)
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
 
-    for key in ["E0", "dx", "emin", "emax", "npts", "zmax"]:
-        if key in params:
-            try:
-                params[key] = float(params[key])
-            except ValueError:
-                pass
-
-    if mode == "bragg":
-        x, y, _ = bragg_curve(params["E0"], material, dx_cm=params.get("dx", 0.01))
-        data = pd.DataFrame({"Depth (cm)": x, "Relative Dose": y})
-    elif mode == "stopping":
-        energies = np.linspace(params.get("emin", 10), params.get("emax", 250), int(params.get("npts", 120)))
-        x, y = stopping_power_curve(energies, material)
-        data = pd.DataFrame({"Energy (MeV)": x, "Mass Stopping Power (MeV·cm²/g)": y})
-    elif mode == "range":
-        energies = np.linspace(params.get("emin", 10), params.get("emax", 250), int(params.get("npts", 120)))
-        x, y = range_vs_energy(energies, material)
-        data = pd.DataFrame({"Initial Energy (MeV)": x, "CSDA Range (cm)": y})
-    elif mode == "lateral":
-        depths = np.linspace(0, params.get("zmax", 25), int(params.get("npts", 120)))
-        x, y = lateral_sigma_curve(depths, params.get("E0", 150), material)
-        data = pd.DataFrame({"Depth (cm)": x, "Lateral Spread σ (cm)": y})
-    else:
-        return jsonify({"ok": False, "error": "Unknown mode"}), 400
+    mode = params["mode"]
+    material = params["material_spec"]
 
     buf = io.BytesIO()
     with pd.ExcelWriter(buf, engine="xlsxwriter") as writer:
         data.to_excel(writer, index=False, sheet_name="proton_data")
-        meta = pd.DataFrame({"Parameter": list(params.keys()), "Value": list(params.values())})
+        meta = pd.DataFrame(
+            [
+                ("Material", params["material_label"]),
+                ("Atomic Number (Z)", material["Z"]),
+                ("Density (g/cm³)", material["rho"]),
+                ("Mode", PROTON_MODE_LABELS.get(mode, mode)),
+                ("Initial Energy (MeV)", params["E0"]),
+                ("Step Size (cm)", params["dx"]),
+                ("Energy Min (MeV)", params["emin"]),
+                ("Energy Max (MeV)", params["emax"]),
+                ("Points", params["npts"]),
+                ("Max Depth (cm)", params["zmax"]),
+            ],
+            columns=["Parameter", "Value"],
+        )
         meta.to_excel(writer, index=False, sheet_name="parameters")
     buf.seek(0)
 
-    filename = f"proton_data_{mode}_{datetime.datetime.now():%Y%m%d_%H%M%S}.xlsx"
+    filename = f"{_slugify_label(params['material_label'])}_proton_{mode}_{datetime.datetime.now():%Y%m%d_%H%M%S}.xlsx"
     return send_file(
         buf,
         as_attachment=True,
@@ -924,16 +1315,9 @@ def report_proton():
     sample data, and a short scientific interpretation.
     """
     try:
-        params = request.form.to_dict() or {}
-        mode = params.get("mode", "bragg")
-        material = params.get("material", "water")
-
-        for key in ["E0", "dx", "emin", "emax", "npts", "zmax"]:
-            if key in params:
-                try:
-                    params[key] = float(params[key])
-                except ValueError:
-                    pass
+        params = _parse_proton_request(request.form)
+        mode = params["mode"]
+        material = params["material_spec"]
 
         fig, ax = plot_proton_interaction(mode, params)
         os.makedirs("static/plots", exist_ok=True)
@@ -941,23 +1325,7 @@ def report_proton():
         fig.savefig(plot_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
 
-        if mode == "bragg":
-            x, y, _ = bragg_curve(params.get("E0", 150), material, dx_cm=params.get("dx", 0.01))
-            df = pd.DataFrame({"Depth (cm)": x, "Relative Dose": y})
-        elif mode == "stopping":
-            energies = np.linspace(params.get("emin", 10), params.get("emax", 250), int(params.get("npts", 120)))
-            x, y = stopping_power_curve(energies, material)
-            df = pd.DataFrame({"Energy (MeV)": x, "Mass Stopping Power (MeV·cm²/g)": y})
-        elif mode == "range":
-            energies = np.linspace(params.get("emin", 10), params.get("emax", 250), int(params.get("npts", 120)))
-            x, y = range_vs_energy(energies, material)
-            df = pd.DataFrame({"Initial Energy (MeV)": x, "CSDA Range (cm)": y})
-        elif mode == "lateral":
-            depths = np.linspace(0, params.get("zmax", 25), int(params.get("npts", 120)))
-            x, y = lateral_sigma_curve(depths, params.get("E0", 150), material)
-            df = pd.DataFrame({"Depth (cm)": x, "Lateral Spread σ (cm)": y})
-        else:
-            return jsonify({"error": "Unknown mode selected"}), 400
+        df = _build_proton_dataframe(params)
 
         pdf_buffer = io.BytesIO()
         doc = SimpleDocTemplate(pdf_buffer, pagesize=A4)
@@ -968,40 +1336,33 @@ def report_proton():
             story.append(Image(logo_path, width=70, height=70))
             story[-1].hAlign = 'CENTER'
             story.append(Spacer(1, 0.2 * inch))
-        styles = getSampleStyleSheet()
-        styles.add(ParagraphStyle(name="Heading", fontName="DejaVuSans", fontSize=16, leading=22,
+        styles = _create_pdf_styles()
+        styles.add(ParagraphStyle(name="Heading", fontName=PDF_FONT_BOLD, fontSize=16, leading=22,
                                   textColor=colors.darkblue, spaceAfter=12))
-        styles.add(ParagraphStyle(name="NormalBold", fontName="DejaVuSans", fontSize=11, leading=14,
+        styles.add(ParagraphStyle(name="NormalBold", fontName=PDF_FONT_BOLD, fontSize=11, leading=14,
                                   textColor=colors.black, spaceAfter=6))
-        styles.add(ParagraphStyle(name="Warning", fontName="DejaVuSans", fontSize=9, leading=13,
+        styles.add(ParagraphStyle(name="Warning", fontName=PDF_FONT_BOLD, fontSize=9, leading=13,
                                   textColor=colors.red, spaceAfter=8))
-        styles.add(ParagraphStyle(name="Scientific", fontName="DejaVuSans", fontSize=10, leading=14,
+        styles.add(ParagraphStyle(name="Scientific", fontName=PDF_FONT_ITALIC, fontSize=10, leading=14,
                                   textColor=colors.black, spaceAfter=6, italic=True))
 
-        E0_val = params.get("E0", 150)
-        mode_label = {
-            "bragg": "Bragg Peak",
-            "stopping": "Stopping Power",
-            "range": "Range–Energy",
-            "lateral": "Lateral Scattering"
-        }.get(mode, "Interaction")
-
-        story.append(Paragraph(f"Proton {mode_label} Report — {E0_val:.0f} MeV in {material.capitalize()}", styles["Heading"]))
-        story.append(Paragraph(f"Generated on: {datetime.datetime.now():%Y-%m-%d %H:%M:%S}", styles["Normal"]))
+        E0_val = params["E0"]
+        mode_label = PROTON_MODE_LABELS.get(mode, "Interaction")
+        story.append(Paragraph(_pdf_safe_text(f"Proton {mode_label} Report — {E0_val:.0f} MeV in {params['material_label']}"), styles["Heading"]))
+        story.append(Paragraph(_pdf_safe_text(f"Generated on: {datetime.datetime.now():%Y-%m-%d %H:%M:%S}"), styles["Normal"]))
         story.append(Spacer(1, 0.3 * inch))
 
-        mat_data = MATERIALS.get(material, {"Z": 7.4, "rho": 1.0})
         table_data = [
             ["Parameter", "Value"],
-            ["Material", material.capitalize()],
-            ["Atomic Number (Z)", f"{mat_data.get('Z', 7.4):.2f}"],
-            ["Density (ρ, g/cm³)", f"{mat_data.get('rho', 1.0):.3f}"],
-            ["Mode", mode.capitalize()],
+            ["Material", params["material_label"]],
+            ["Atomic Number (Z)", f"{material.get('Z', 7.4):.2f}"],
+            ["Density (ρ, g/cm³)", f"{material.get('rho', 1.0):.3f}"],
+            ["Mode", mode_label],
             ["Initial Energy (MeV)", f"{E0_val:.2f}"],
         ]
-        tbl = Table(table_data, colWidths=[2.7 * inch, 3.3 * inch])
+        tbl = Table(_pdf_safe_table(table_data), colWidths=[2.7 * inch, 3.3 * inch])
         tbl.setStyle(TableStyle([
-            ("FONTNAME", (0, 0), (-1, -1), "DejaVuSans"),
+            ("FONTNAME", (0, 0), (-1, -1), PDF_FONT),
             ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
             ("ALIGN", (0, 0), (-1, -1), "CENTER"),
             ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
@@ -1010,19 +1371,19 @@ def report_proton():
         story.append(Spacer(1, 0.3 * inch))
 
         if plot_path and os.path.exists(plot_path):
-            story.append(Paragraph("Figure 1. Proton Interaction Curve", styles["NormalBold"]))
+            story.append(Paragraph(_pdf_safe_text("Figure 1. Proton Interaction Curve"), styles["NormalBold"]))
             story.append(Image(plot_path, width=5.5 * inch, height=3.5 * inch))
             story.append(Spacer(1, 0.25 * inch))
             story.append(Paragraph(
-                f"<i>Simulated depth–dose distribution for protons in {material.capitalize()} (E0 = {E0_val} MeV).</i>",
+                _pdf_safe_text(f"<i>Simulated proton interaction response in {params['material_label']} (E0 = {E0_val} MeV).</i>"),
                 styles["Scientific"]
             ))
             story.append(Spacer(1, 0.2 * inch))
 
-        story.append(Paragraph("Sample Data (First 5 Rows)", styles["NormalBold"]))
-        formatted_data = [df.columns.tolist()]
+        story.append(Paragraph(_pdf_safe_text("Sample Data (First 5 Rows)"), styles["NormalBold"]))
+        formatted_data = [[_pdf_safe_text(col) for col in df.columns.tolist()]]
         for row in df.head(5).itertuples(index=False):
-            formatted_data.append([f"{v:.3g}" if isinstance(v, (int, float)) else str(v) for v in row])
+            formatted_data.append([_pdf_safe_text(f"{v:.3g}" if isinstance(v, (int, float)) else str(v)) for v in row])
         t = Table(formatted_data, colWidths=[1.6 * inch] + [1.2 * inch] * (len(df.columns) - 1))
         t.setStyle(TableStyle([
             ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
@@ -1033,7 +1394,8 @@ def report_proton():
         story.append(Spacer(1, 0.3 * inch))
 
         story.append(Paragraph("Scientific Interpretation", styles["Heading"]))
-        if mode == "bragg":
+        interp = _proton_interpretation(mode)
+        if False and mode == "bragg":
             interp = "Bragg peak is observed near the stopping depth—typical for therapeutic proton beams."
         elif mode == "stopping":
             interp = "Stopping power decreases gradually with increasing energy, consistent with Bethe–Bloch predictions."
@@ -1056,13 +1418,13 @@ def report_proton():
         ))
         story.append(Spacer(1, 0.3 * inch))
         story.append(Paragraph(
-            "Generated by: Medical Radiation Visualizer © 2025 — Hassan Almoosa",
+            _pdf_safe_text("Generated by: Medical Radiation Visualizer © 2025 — Hassan Almoosa"),
             styles["Normal"]
         ))
         doc.build(story)
         pdf_buffer.seek(0)
 
-        filename = f"{material}_proton_report_{int(time.time())}.pdf"
+        filename = f"{_slugify_label(params['material_label'])}_proton_report_{int(time.time())}.pdf"
         return send_file(
             pdf_buffer,
             as_attachment=True,

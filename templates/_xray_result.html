@@ -1,23 +1,26 @@
 <div class="result">
   <h3>Results</h3>
   
-  <p><b>Material 1:</b> {{ selected_material.capitalize() }}</p>
+  <p><b>Material 1:</b> {{ material_label1 }}</p>
   <p><b>Atomic Number (Z₁):</b> {{ selected_Z }}</p>
-  
-  {% if selected_material == 'Custom Material 1' and rho1 %}
+  {% if rho1 is not none %}
     <p><b>Density (ρ₁):</b> {{ rho1 }} g/cm³</p>
   {% endif %}
 
-  {% if selected_material2 %}
-    <p><b>Compared with:</b> {{ selected_material2.capitalize() }}</p>
-    {% if selected_material2 == 'Custom Material 2' and rho2 %}
+  {% if material_label2 %}
+    <p><b>Compared with:</b> {{ material_label2 }}</p>
+    {% if selected_Z2 %}
+      <p><b>Atomic Number (Z₂):</b> {{ selected_Z2 }}</p>
+    {% endif %}
+    {% if rho2 is not none %}
       <p><b>Density (ρ₂):</b> {{ rho2 }} g/cm³</p>
     {% endif %}
   {% endif %}
 
   <hr>
 
-  <p><b>Energy range:</b> {{ emin }} – {{ emax }} keV ({{ scale.capitalize() }} Scale)</p>
+  <p><b>Energy range:</b> {{ emin }} – {{ emax }} keV</p>
+  <p><b>Display:</b> {{ scale }}</p>
   <p><b>Rayleigh included:</b> {{ "Yes" if show_rayleigh else "No" }}</p>
 
 
@@ -26,7 +29,7 @@
   </div>
 
   <div class="note" style="margin-top:12px; font-size:0.9rem; color:#555;">
-    <p>🔬 Visualization Note: Sharp vertical lines indicate **K-edge** and **L-edge** absorption thresholds.</p>
+    <p>🔬 Visualization Note: The plot now shows absolute attenuation proxies on a logarithmic y-axis, so material density and total curve magnitude remain visible.</p>
   </div>
 
 

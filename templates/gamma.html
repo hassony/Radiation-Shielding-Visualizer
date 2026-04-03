@@ -128,9 +128,9 @@
         {% if plot_path %}
         <div class="result">
           <h3>Results</h3>
-          <p><b>Material 1:</b> {{ selected_material.capitalize() if selected_material != 'custom' else name1 }}</p>
-          {% if selected_material2 %}
-          <p><b>Material 2:</b> {{ selected_material2.capitalize() if selected_material2 != 'custom' else name2 }}</p>
+          <p><b>Material 1:</b> {{ material_label1 }}</p>
+          {% if material_label2 %}
+          <p><b>Material 2:</b> {{ material_label2 }}</p>
           {% endif %}
           <p><b>Energy range:</b> {{ emin }} – {{ emax }} MeV</p>
 
